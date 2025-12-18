@@ -31,5 +31,13 @@ export interface ExtractedEntry {
   decision_steps: string;
   risk_level: 'Low' | 'Medium' | 'High';
   exception_language: string;
+  confidence?: 'High' | 'Medium' | 'Low';
+}
+
+export interface DocumentClassification {
+  format: string;
+  topics: string[];
+  estimated_entries?: number;
+  quality_notes?: string;
 }
 

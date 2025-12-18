@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { useRouter } from "next/navigation"
-import { Trash2, Plus } from "lucide-react"
+import { Trash2, Plus, AlertTriangle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
@@ -22,6 +22,24 @@ interface GuidanceEntry {
   risk_level: string
   exception_language: string
   source_reference: string
+  confidence: string
+}
+
+function needsManualReview(value: string): boolean {
+  return value?.includes("NOT SPECIFIED") || value?.includes("requires manual review")
+}
+
+function getConfidenceBadgeColor(confidence: string) {
+  switch (confidence?.toLowerCase()) {
+    case "high":
+      return "bg-green-100 text-green-800 border-green-200"
+    case "medium":
+      return "bg-yellow-100 text-yellow-800 border-yellow-200"
+    case "low":
+      return "bg-red-100 text-red-800 border-red-200"
+    default:
+      return "bg-gray-100 text-gray-800 border-gray-200"
+  }
 }
 
 export default function ReviewPage() {
@@ -51,7 +69,7 @@ export default function ReviewPage() {
       return
     }
 
-    // Map extracted entries to editable format
+    // Map extracted entries to editable format and sort by confidence (low first)
     const mapped = extractedEntries.map((entry, index) => ({
       id: String(index + 1),
       topic: entry.topic || '',
@@ -62,11 +80,33 @@ export default function ReviewPage() {
       risk_level: entry.risk_level?.toLowerCase() || 'medium',
       exception_language: entry.exception_language || '',
       source_reference: sourceReference || '',
+      confidence: entry.confidence || 'medium',
     }))
+    
+    // Sort: Low confidence first, then Medium, then High
+    const confidenceOrder: Record<string, number> = { low: 0, medium: 1, high: 2 }
+    mapped.sort((a, b) => (confidenceOrder[a.confidence.toLowerCase()] || 1) - (confidenceOrder[b.confidence.toLowerCase()] || 1))
     
     setEntries(mapped)
     fetchTopics()
   }, [extractedEntries, sourceReference, router, fetchTopics])
+
+  // Calculate summary statistics
+  const summary = useMemo(() => {
+    const high = entries.filter(e => e.confidence?.toLowerCase() === 'high').length
+    const medium = entries.filter(e => e.confidence?.toLowerCase() === 'medium').length
+    const low = entries.filter(e => e.confidence?.toLowerCase() === 'low').length
+    
+    // Count fields needing review
+    let fieldsNeedingReview = 0
+    entries.forEach(entry => {
+      if (needsManualReview(entry.required_documents)) fieldsNeedingReview++
+      if (needsManualReview(entry.decision_steps)) fieldsNeedingReview++
+      if (needsManualReview(entry.exception_language)) fieldsNeedingReview++
+    })
+    
+    return { high, medium, low, fieldsNeedingReview }
+  }, [entries])
 
   const addEntry = () => {
     const newEntry: GuidanceEntry = {
@@ -79,6 +119,7 @@ export default function ReviewPage() {
       risk_level: "medium",
       exception_language: "",
       source_reference: sourceReference || "",
+      confidence: "high", // Manual entries are high confidence
     }
     setEntries([...entries, newEntry])
   }
@@ -123,6 +164,7 @@ export default function ReviewPage() {
       decision_steps: entry.decision_steps,
       risk_level: (entry.risk_level.charAt(0).toUpperCase() + entry.risk_level.slice(1)) as 'Low' | 'Medium' | 'High',
       exception_language: entry.exception_language,
+      confidence: (entry.confidence.charAt(0).toUpperCase() + entry.confidence.slice(1)) as 'Low' | 'Medium' | 'High',
     }))
 
     setReviewedEntries(reviewed)
@@ -147,11 +189,36 @@ export default function ReviewPage() {
     <div className="min-h-screen bg-background pb-32">
       <div className="max-w-5xl mx-auto px-6 py-12">
         {/* Header */}
-        <div className="mb-10">
+        <div className="mb-6">
           <h1 className="text-3xl font-bold text-foreground mb-2 text-balance">Review Extracted Guidance</h1>
           <p className="text-base text-muted-foreground">
             Edit any fields before saving to your knowledge base • {entries.length} {entries.length === 1 ? 'entry' : 'entries'} from {sourceReference}
           </p>
+        </div>
+
+        {/* Summary Stats */}
+        <div className="bg-card border border-border rounded-lg p-4 mb-8 shadow-sm">
+          <div className="flex flex-wrap items-center gap-4 text-sm">
+            <span className="font-medium text-foreground">{entries.length} entries extracted:</span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-green-500"></span>
+              <span className="text-muted-foreground">{summary.high} high confidence</span>
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-yellow-500"></span>
+              <span className="text-muted-foreground">{summary.medium} medium confidence</span>
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-red-500"></span>
+              <span className="text-muted-foreground">{summary.low} low confidence</span>
+            </span>
+            {summary.fieldsNeedingReview > 0 && (
+              <span className="inline-flex items-center gap-1.5 text-amber-600">
+                <AlertTriangle className="w-4 h-4" />
+                <span>{summary.fieldsNeedingReview} fields need manual review</span>
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Entry Cards */}
@@ -161,6 +228,11 @@ export default function ReviewPage() {
               {/* Entry Number Badge */}
               <div className="absolute -top-3 left-4 px-3 py-1 bg-primary text-primary-foreground text-xs font-semibold rounded-full">
                 Entry {index + 1}
+              </div>
+
+              {/* Confidence Badge */}
+              <div className={`absolute -top-3 left-24 px-3 py-1 text-xs font-semibold rounded-full border ${getConfidenceBadgeColor(entry.confidence)}`}>
+                {entry.confidence.charAt(0).toUpperCase() + entry.confidence.slice(1)} Confidence
               </div>
 
               {/* Delete Button */}
@@ -228,29 +300,35 @@ export default function ReviewPage() {
 
                 {/* Required Documents */}
                 <div className="md:col-span-2">
-                  <Label htmlFor={`documents-${entry.id}`} className="text-sm font-medium mb-2 block">
+                  <Label htmlFor={`documents-${entry.id}`} className="text-sm font-medium mb-2 flex items-center gap-2">
                     Required Documents
+                    {needsManualReview(entry.required_documents) && (
+                      <AlertTriangle className="w-4 h-4 text-amber-500" />
+                    )}
                   </Label>
                   <Textarea
                     id={`documents-${entry.id}`}
                     value={entry.required_documents}
                     onChange={(e) => updateEntry(entry.id, "required_documents", e.target.value)}
                     placeholder="List required documents"
-                    className="min-h-[80px] resize-y"
+                    className={`min-h-[80px] resize-y ${needsManualReview(entry.required_documents) ? 'bg-red-50 border-red-200 dark:bg-red-950/20 dark:border-red-800' : ''}`}
                   />
                 </div>
 
                 {/* Decision Steps */}
                 <div className="md:col-span-2">
-                  <Label htmlFor={`steps-${entry.id}`} className="text-sm font-medium mb-2 block">
+                  <Label htmlFor={`steps-${entry.id}`} className="text-sm font-medium mb-2 flex items-center gap-2">
                     Decision Steps
+                    {needsManualReview(entry.decision_steps) && (
+                      <AlertTriangle className="w-4 h-4 text-amber-500" />
+                    )}
                   </Label>
                   <Textarea
                     id={`steps-${entry.id}`}
                     value={entry.decision_steps}
                     onChange={(e) => updateEntry(entry.id, "decision_steps", e.target.value)}
                     placeholder="List decision steps"
-                    className="min-h-[100px] resize-y"
+                    className={`min-h-[100px] resize-y ${needsManualReview(entry.decision_steps) ? 'bg-red-50 border-red-200 dark:bg-red-950/20 dark:border-red-800' : ''}`}
                   />
                 </div>
 
@@ -287,15 +365,18 @@ export default function ReviewPage() {
 
                 {/* Exception Language */}
                 <div className="md:col-span-2">
-                  <Label htmlFor={`exception-${entry.id}`} className="text-sm font-medium mb-2 block">
+                  <Label htmlFor={`exception-${entry.id}`} className="text-sm font-medium mb-2 flex items-center gap-2">
                     Exception Language
+                    {needsManualReview(entry.exception_language) && (
+                      <AlertTriangle className="w-4 h-4 text-amber-500" />
+                    )}
                   </Label>
                   <Textarea
                     id={`exception-${entry.id}`}
                     value={entry.exception_language}
                     onChange={(e) => updateEntry(entry.id, "exception_language", e.target.value)}
                     placeholder="Describe any exceptions or special considerations"
-                    className="min-h-[80px] resize-y"
+                    className={`min-h-[80px] resize-y ${needsManualReview(entry.exception_language) ? 'bg-red-50 border-red-200 dark:bg-red-950/20 dark:border-red-800' : ''}`}
                   />
                 </div>
               </div>
