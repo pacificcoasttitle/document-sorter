@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
 
     for (const entry of entries) {
       // Get or create topic
-      let topicResult = await pool.query('SELECT id FROM topics WHERE name = $1', [entry.topic]);
+      const topicResult = await pool.query('SELECT id FROM topics WHERE name = $1', [entry.topic]);
       let topicId;
       
       if (topicResult.rows.length === 0) {
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Get or create subtopic
-      let subtopicResult = await pool.query('SELECT id FROM subtopics WHERE name = $1 AND topic_id = $2', [entry.subtopic, topicId]);
+      const subtopicResult = await pool.query('SELECT id FROM subtopics WHERE name = $1 AND topic_id = $2', [entry.subtopic, topicId]);
       let subtopicId;
       
       if (subtopicResult.rows.length === 0) {

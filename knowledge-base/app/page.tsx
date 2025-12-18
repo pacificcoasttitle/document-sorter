@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo, useEffect, useCallback } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -57,12 +57,12 @@ export default function HomePage() {
     fetchTopics()
     fetchEntries()
     fetchActivities()
-  }, [])
+  }, [fetchEntries, fetchActivities])
 
   // Refetch entries when filters change
   useEffect(() => {
     fetchEntries()
-  }, [topicFilter, riskFilter, searchQuery])
+  }, [fetchEntries])
 
   const fetchTopics = async () => {
     try {
@@ -74,7 +74,7 @@ export default function HomePage() {
     }
   }
 
-  const fetchEntries = async () => {
+  const fetchEntries = useCallback(async () => {
     setIsLoading(true)
     try {
       const params = new URLSearchParams()
@@ -90,9 +90,9 @@ export default function HomePage() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [topicFilter, riskFilter, searchQuery])
 
-  const fetchActivities = async (filter?: string) => {
+  const fetchActivities = useCallback(async (filter?: string) => {
     setIsLoadingActivities(true)
     try {
       const params = new URLSearchParams()
@@ -114,11 +114,11 @@ export default function HomePage() {
     } finally {
       setIsLoadingActivities(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
     fetchActivities(activityFilter)
-  }, [activityFilter])
+  }, [activityFilter, fetchActivities])
 
   // Sort entries client-side
   const sortedEntries = useMemo(() => {
