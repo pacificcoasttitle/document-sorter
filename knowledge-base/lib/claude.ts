@@ -33,17 +33,30 @@ Return ONLY valid JSON, no markdown or explanation.`,
     ]
   });
 
-  const responseText = message.content[0].type === 'text' ? message.content[0].text : '';
+  // Log raw Claude response
+  console.log('Raw Claude response:', JSON.stringify(message.content, null, 2));
   
+  const responseText = message.content[0].type === 'text' ? message.content[0].text : '';
+  console.log('Response text:', responseText);
+  
+  let entries;
   try {
-    return JSON.parse(responseText);
+    entries = JSON.parse(responseText);
   } catch {
     // Try to extract JSON from the response
+    console.log('Direct JSON parse failed, trying regex extraction...');
     const jsonMatch = responseText.match(/\[[\s\S]*\]/);
     if (jsonMatch) {
-      return JSON.parse(jsonMatch[0]);
+      entries = JSON.parse(jsonMatch[0]);
+    } else {
+      throw new Error('Failed to parse Claude response as JSON');
     }
-    throw new Error('Failed to parse Claude response as JSON');
   }
+  
+  // Log parsed entries
+  console.log('Parsed entries:', JSON.stringify(entries, null, 2));
+  console.log('Number of entries extracted:', Array.isArray(entries) ? entries.length : 'not an array');
+  
+  return entries;
 }
 
