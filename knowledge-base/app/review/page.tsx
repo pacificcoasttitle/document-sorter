@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { Trash2, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -33,6 +33,17 @@ export default function ReviewPage() {
   const [topics, setTopics] = useState<Topic[]>([])
   const [subtopics, setSubtopics] = useState<Subtopic[]>([])
 
+  const fetchTopics = useCallback(async () => {
+    try {
+      const response = await fetch('/api/topics')
+      const data = await response.json()
+      setTopics(data.topics || [])
+      setSubtopics(data.subtopics || [])
+    } catch (error) {
+      console.error('Failed to fetch topics:', error)
+    }
+  }, [])
+
   useEffect(() => {
     // If no extracted entries, redirect to upload
     if (extractedEntries.length === 0) {
@@ -55,18 +66,7 @@ export default function ReviewPage() {
     
     setEntries(mapped)
     fetchTopics()
-  }, [extractedEntries, sourceReference, router])
-
-  const fetchTopics = async () => {
-    try {
-      const response = await fetch('/api/topics')
-      const data = await response.json()
-      setTopics(data.topics || [])
-      setSubtopics(data.subtopics || [])
-    } catch (error) {
-      console.error('Failed to fetch topics:', error)
-    }
-  }
+  }, [extractedEntries, sourceReference, router, fetchTopics])
 
   const addEntry = () => {
     const newEntry: GuidanceEntry = {

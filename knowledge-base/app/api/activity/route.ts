@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
       SELECT * FROM activity_log
       WHERE 1=1
     `;
-    const params: (string[] | number)[] = [];
+    const params: (string | number | string[])[] = [];
 
     if (filter && filter !== 'All Activity') {
       const actionMap: Record<string, string[]> = {

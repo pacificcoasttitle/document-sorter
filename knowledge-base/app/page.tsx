@@ -52,19 +52,8 @@ export default function HomePage() {
   const [activityFilter, setActivityFilter] = useState("all")
   const [expandedActivity, setExpandedActivity] = useState<string | null>(null)
 
-  // Fetch entries and topics on load
-  useEffect(() => {
-    fetchTopics()
-    fetchEntries()
-    fetchActivities()
-  }, [fetchEntries, fetchActivities])
-
-  // Refetch entries when filters change
-  useEffect(() => {
-    fetchEntries()
-  }, [fetchEntries])
-
-  const fetchTopics = async () => {
+  // Define all fetch functions with useCallback BEFORE using them in useEffect
+  const fetchTopics = useCallback(async () => {
     try {
       const response = await fetch('/api/topics')
       const data = await response.json()
@@ -72,7 +61,7 @@ export default function HomePage() {
     } catch (error) {
       console.error('Failed to fetch topics:', error)
     }
-  }
+  }, [])
 
   const fetchEntries = useCallback(async () => {
     setIsLoading(true)
@@ -116,6 +105,19 @@ export default function HomePage() {
     }
   }, [])
 
+  // Fetch entries and topics on load
+  useEffect(() => {
+    fetchTopics()
+    fetchEntries()
+    fetchActivities()
+  }, [fetchTopics, fetchEntries, fetchActivities])
+
+  // Refetch entries when filters change
+  useEffect(() => {
+    fetchEntries()
+  }, [fetchEntries])
+
+  // Refetch activities when filter changes
   useEffect(() => {
     fetchActivities(activityFilter)
   }, [activityFilter, fetchActivities])
