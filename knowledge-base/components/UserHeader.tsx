@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/components/AuthProvider"
 import { WorkspaceSelector } from "@/components/WorkspaceSelector"
-import { LogOut, User, Settings, ChevronDown, Shield } from "lucide-react"
+import { LogOut, User, Settings, ChevronDown, Shield, HelpCircle } from "lucide-react"
 
 export function UserHeader() {
   const router = useRouter()
@@ -39,6 +39,15 @@ export function UserHeader() {
         
         <div className="flex items-center gap-4">
           <WorkspaceSelector />
+
+          {/* Help link */}
+          <button
+            onClick={() => router.push('/help')}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted/50 transition-colors text-muted-foreground hover:text-foreground"
+          >
+            <HelpCircle className="w-4 h-4" />
+            <span className="hidden sm:inline text-sm">Help</span>
+          </button>
 
           {/* Admin link - only for admins */}
           {isAdmin && (
