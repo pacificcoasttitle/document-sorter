@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Spinner } from "@/components/ui/spinner"
+import { useWorkspace } from "@/contexts/WorkspaceContext"
 import {
   Upload,
   Search,
@@ -37,6 +38,8 @@ interface ActivityLogItem {
 }
 
 export default function HomePage() {
+  const { currentWorkspace } = useWorkspace()
+  
   const [entries, setEntries] = useState<EntryWithNames[]>([])
   const [topics, setTopics] = useState<Topic[]>([])
   const [activities, setActivities] = useState<ActivityLogItem[]>([])
@@ -54,19 +57,25 @@ export default function HomePage() {
 
   // Define all fetch functions with useCallback BEFORE using them in useEffect
   const fetchTopics = useCallback(async () => {
+    if (!currentWorkspace) return
     try {
-      const response = await fetch('/api/topics')
+      const params = new URLSearchParams()
+      params.append('workspace_id', String(currentWorkspace.id))
+      
+      const response = await fetch(`/api/topics?${params}`)
       const data = await response.json()
       setTopics(data.topics || [])
     } catch (error) {
       console.error('Failed to fetch topics:', error)
     }
-  }, [])
+  }, [currentWorkspace])
 
   const fetchEntries = useCallback(async () => {
+    if (!currentWorkspace) return
     setIsLoading(true)
     try {
       const params = new URLSearchParams()
+      params.append('workspace_id', String(currentWorkspace.id))
       if (topicFilter !== 'all') params.append('topic', topicFilter)
       if (riskFilter !== 'all') params.append('risk_level', riskFilter.charAt(0).toUpperCase() + riskFilter.slice(1))
       if (searchQuery) params.append('search', searchQuery)
@@ -79,12 +88,14 @@ export default function HomePage() {
     } finally {
       setIsLoading(false)
     }
-  }, [topicFilter, riskFilter, searchQuery])
+  }, [currentWorkspace, topicFilter, riskFilter, searchQuery])
 
   const fetchActivities = useCallback(async (filter?: string) => {
+    if (!currentWorkspace) return
     setIsLoadingActivities(true)
     try {
       const params = new URLSearchParams()
+      params.append('workspace_id', String(currentWorkspace.id))
       if (filter && filter !== 'all') {
         const filterMap: Record<string, string> = {
           'uploads': 'Uploads',
@@ -103,24 +114,30 @@ export default function HomePage() {
     } finally {
       setIsLoadingActivities(false)
     }
-  }, [])
+  }, [currentWorkspace])
 
-  // Fetch entries and topics on load
+  // Fetch entries and topics on load and when workspace changes
   useEffect(() => {
-    fetchTopics()
-    fetchEntries()
-    fetchActivities()
-  }, [fetchTopics, fetchEntries, fetchActivities])
+    if (currentWorkspace) {
+      fetchTopics()
+      fetchEntries()
+      fetchActivities()
+    }
+  }, [currentWorkspace, fetchTopics, fetchEntries, fetchActivities])
 
   // Refetch entries when filters change
   useEffect(() => {
-    fetchEntries()
-  }, [fetchEntries])
+    if (currentWorkspace) {
+      fetchEntries()
+    }
+  }, [fetchEntries, currentWorkspace])
 
   // Refetch activities when filter changes
   useEffect(() => {
-    fetchActivities(activityFilter)
-  }, [activityFilter, fetchActivities])
+    if (currentWorkspace) {
+      fetchActivities(activityFilter)
+    }
+  }, [activityFilter, fetchActivities, currentWorkspace])
 
   // Sort entries client-side
   const sortedEntries = useMemo(() => {
@@ -209,6 +226,31 @@ export default function HomePage() {
     }
   }
 
+  // Get workspace-specific title and subtitle
+  const getWorkspaceTitle = () => {
+    if (!currentWorkspace) return { title: 'Knowledge Base', subtitle: 'Your knowledge repository' }
+    
+    switch (currentWorkspace.slug) {
+      case 'underwriting':
+        return { 
+          title: 'Underwriting Knowledge Base', 
+          subtitle: 'Title insurance underwriting guidance and procedures' 
+        }
+      case 'operations':
+        return { 
+          title: 'Operations SOPs', 
+          subtitle: 'Standard operating procedures and department policies' 
+        }
+      default:
+        return { 
+          title: `${currentWorkspace.name} Knowledge Base`, 
+          subtitle: currentWorkspace.description || 'Your knowledge repository' 
+        }
+    }
+  }
+
+  const { title, subtitle } = getWorkspaceTitle()
+
   return (
     <div className="min-h-screen bg-background flex">
       <div className={`flex-1 transition-all duration-300 ${activityLogOpen ? "mr-80" : "mr-0"}`}>
@@ -216,8 +258,8 @@ export default function HomePage() {
           {/* Header Section */}
           <div className="flex items-start justify-between mb-8 gap-6">
             <div>
-              <h1 className="text-4xl font-bold text-foreground mb-2 text-balance">Tessa Knowledge Tool</h1>
-              <p className="text-base text-muted-foreground">Your underwriting knowledge base</p>
+              <h1 className="text-4xl font-bold text-foreground mb-2 text-balance">{title}</h1>
+              <p className="text-base text-muted-foreground">{subtitle}</p>
             </div>
             <div className="flex items-center gap-3">
               <Button
@@ -364,7 +406,7 @@ export default function HomePage() {
 
       {/* Activity Log Sidebar */}
       <div
-        className={`fixed right-0 top-0 h-full w-80 bg-muted/30 border-l border-border shadow-lg transition-transform duration-300 z-40 ${
+        className={`fixed right-0 top-14 h-[calc(100%-3.5rem)] w-80 bg-muted/30 border-l border-border shadow-lg transition-transform duration-300 z-40 ${
           activityLogOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >

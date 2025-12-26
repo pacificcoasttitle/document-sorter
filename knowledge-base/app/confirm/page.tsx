@@ -7,11 +7,13 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Spinner } from "@/components/ui/spinner"
 import { useEntries } from "@/contexts/EntriesContext"
+import { useWorkspace } from "@/contexts/WorkspaceContext"
 import { useToast } from "@/hooks/use-toast"
 
 export default function ConfirmPage() {
   const router = useRouter()
   const { reviewedEntries, sourceReference, userName, clearAll } = useEntries()
+  const { currentWorkspace } = useWorkspace()
   const { toast } = useToast()
   
   const [owner, setOwner] = useState(userName || '')
@@ -85,7 +87,8 @@ export default function ConfirmPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           entries: entriesToSave,
-          user_name: owner.trim()
+          user_name: owner.trim(),
+          workspace_id: currentWorkspace?.id || 1
         }),
       })
 
@@ -131,7 +134,7 @@ export default function ConfirmPage() {
         <div className="mb-10">
           <h1 className="text-3xl font-bold text-foreground mb-2 text-balance">Confirm & Save</h1>
           <p className="text-base text-muted-foreground">
-            Review your {reviewedEntries.length} {reviewedEntries.length === 1 ? 'entry' : 'entries'} before saving
+            Review your {reviewedEntries.length} {reviewedEntries.length === 1 ? 'entry' : 'entries'} before saving to {currentWorkspace?.name || 'the knowledge base'}
           </p>
         </div>
 

@@ -1,16 +1,39 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   console.log('[API] GET /api/topics called');
   
   try {
+    const { searchParams } = new URL(request.url);
+    const workspaceId = searchParams.get('workspace_id');
+
+    console.log('[API] Topics params:', { workspaceId });
+
+    let topicsQuery = 'SELECT * FROM topics';
+    let subtopicsQuery = 'SELECT * FROM subtopics';
+    const params: (string | number)[] = [];
+
+    if (workspaceId) {
+      params.push(parseInt(workspaceId));
+      topicsQuery += ` WHERE workspace_id = $1`;
+      // Subtopics are linked via topics, so we need a join
+      subtopicsQuery = `
+        SELECT s.* FROM subtopics s
+        JOIN topics t ON s.topic_id = t.id
+        WHERE t.workspace_id = $1
+      `;
+    }
+
+    topicsQuery += ' ORDER BY name';
+    subtopicsQuery += ' ORDER BY name';
+
     console.log('[API] Executing topics query...');
-    const topicsResult = await pool.query('SELECT * FROM topics ORDER BY name');
+    const topicsResult = await pool.query(topicsQuery, params);
     console.log('[API] Topics found:', topicsResult.rows.length);
     
     console.log('[API] Executing subtopics query...');
-    const subtopicsResult = await pool.query('SELECT * FROM subtopics ORDER BY name');
+    const subtopicsResult = await pool.query(subtopicsQuery, params);
     console.log('[API] Subtopics found:', subtopicsResult.rows.length);
 
     return NextResponse.json({
@@ -25,4 +48,3 @@ export async function GET() {
     }, { status: 500 });
   }
 }
-

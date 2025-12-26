@@ -8,14 +8,21 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const filter = searchParams.get('filter');
     const limit = searchParams.get('limit') || '50';
+    const workspaceId = searchParams.get('workspace_id');
 
-    console.log('[API] Activity params:', { filter, limit });
+    console.log('[API] Activity params:', { filter, limit, workspaceId });
 
     let query = `
       SELECT * FROM activity_log
       WHERE 1=1
     `;
     const params: (string | number | string[])[] = [];
+
+    // Filter by workspace
+    if (workspaceId) {
+      params.push(parseInt(workspaceId));
+      query += ` AND workspace_id = $${params.length}`;
+    }
 
     if (filter && filter !== 'All Activity') {
       const actionMap: Record<string, string[]> = {
@@ -50,13 +57,13 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { action, entity_type, entity_id, details, user_name } = await request.json();
+    const { action, entity_type, entity_id, details, user_name, workspace_id } = await request.json();
 
     const result = await pool.query(
-      `INSERT INTO activity_log (action, entity_type, entity_id, details, user_name)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO activity_log (action, entity_type, entity_id, details, user_name, workspace_id)
+       VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING *`,
-      [action, entity_type, entity_id, details, user_name]
+      [action, entity_type, entity_id, details, user_name, workspace_id]
     );
 
     return NextResponse.json({ success: true, activity: result.rows[0] });
@@ -65,4 +72,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to log activity' }, { status: 500 });
   }
 }
-

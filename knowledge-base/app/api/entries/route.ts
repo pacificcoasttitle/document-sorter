@@ -9,8 +9,9 @@ export async function GET(request: NextRequest) {
     const topic = searchParams.get('topic');
     const riskLevel = searchParams.get('risk_level');
     const search = searchParams.get('search');
+    const workspaceId = searchParams.get('workspace_id');
 
-    console.log('[API] Entries params:', { topic, riskLevel, search });
+    console.log('[API] Entries params:', { topic, riskLevel, search, workspaceId });
 
     let query = `
       SELECT e.*, t.name as topic_name, s.name as subtopic_name
@@ -19,7 +20,13 @@ export async function GET(request: NextRequest) {
       JOIN subtopics s ON e.subtopic_id = s.id
       WHERE 1=1
     `;
-    const params: string[] = [];
+    const params: (string | number)[] = [];
+
+    // Filter by workspace
+    if (workspaceId) {
+      params.push(parseInt(workspaceId));
+      query += ` AND e.workspace_id = $${params.length}`;
+    }
 
     if (topic && topic !== 'All') {
       params.push(topic);
@@ -51,4 +58,3 @@ export async function GET(request: NextRequest) {
     }, { status: 500 });
   }
 }
-

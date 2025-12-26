@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label"
 import { Spinner } from "@/components/ui/spinner"
 import { useEntries } from "@/contexts/EntriesContext"
+import { useWorkspace } from "@/contexts/WorkspaceContext"
 import { useToast } from "@/hooks/use-toast"
 import { Topic } from "@/lib/types"
 
@@ -23,17 +24,22 @@ export default function UploadPage() {
   
   const router = useRouter()
   const { setExtractedEntries, setSourceReference, setUserName } = useEntries()
+  const { currentWorkspace } = useWorkspace()
   const { toast } = useToast()
 
   const fetchTopics = useCallback(async () => {
+    if (!currentWorkspace) return
     try {
-      const response = await fetch('/api/topics')
+      const params = new URLSearchParams()
+      params.append('workspace_id', String(currentWorkspace.id))
+      
+      const response = await fetch(`/api/topics?${params}`)
       const data = await response.json()
       setTopics(data.topics || [])
     } catch (error) {
       console.error('Failed to fetch topics:', error)
     }
-  }, [])
+  }, [currentWorkspace])
 
   useEffect(() => {
     fetchTopics()
@@ -105,6 +111,9 @@ export default function UploadPage() {
       const formData = new FormData()
       formData.append('file', selectedFile)
       formData.append('user_name', userName.trim())
+      if (currentWorkspace) {
+        formData.append('workspace_id', String(currentWorkspace.id))
+      }
       if (topic && topic !== 'auto-detect') {
         formData.append('topic', topic)
       }
@@ -144,13 +153,31 @@ export default function UploadPage() {
     }
   }
 
+  // Get workspace-specific title
+  const getWorkspaceTitle = () => {
+    if (!currentWorkspace) return 'Upload Document'
+    switch (currentWorkspace.slug) {
+      case 'underwriting':
+        return 'Upload Underwriting Document'
+      case 'operations':
+        return 'Upload SOP Document'
+      default:
+        return `Upload to ${currentWorkspace.name}`
+    }
+  }
+
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-6">
       <div className="w-full max-w-2xl">
         {/* Header */}
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-foreground mb-3 text-balance">Tessa Knowledge Tool</h1>
-          <p className="text-lg text-muted-foreground">Upload documents to build your knowledge base</p>
+          <h1 className="text-4xl font-bold text-foreground mb-3 text-balance">{getWorkspaceTitle()}</h1>
+          <p className="text-lg text-muted-foreground">
+            {currentWorkspace?.slug === 'operations' 
+              ? 'Upload SOPs and procedures to your knowledge base'
+              : 'Upload documents to build your knowledge base'
+            }
+          </p>
         </div>
 
         {/* Your Name Field */}
@@ -256,4 +283,3 @@ export default function UploadPage() {
     </div>
   )
 }
-
