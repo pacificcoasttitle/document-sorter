@@ -176,11 +176,11 @@ export default function ManageDepartmentsPage() {
         {/* Header */}
         <div className="mb-8">
           <button
-            onClick={() => router.push('/')}
+            onClick={() => router.push('/admin')}
             className="text-sm text-muted-foreground hover:text-foreground mb-4 flex items-center gap-1"
           >
             <ChevronLeft className="w-4 h-4" />
-            Back to Library
+            Back to Admin
           </button>
           <h1 className="text-3xl font-bold text-foreground mb-2 flex items-center gap-3">
             <Building2 className="w-8 h-8" />
