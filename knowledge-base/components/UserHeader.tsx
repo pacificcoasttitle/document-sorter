@@ -4,19 +4,24 @@ import { useState, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/components/AuthProvider"
 import { WorkspaceSelector } from "@/components/WorkspaceSelector"
-import { LogOut, User, Settings, ChevronDown } from "lucide-react"
+import { LogOut, User, Settings, ChevronDown, Shield, Building2, Users } from "lucide-react"
 
 export function UserHeader() {
   const router = useRouter()
   const { user, logout, isLoading } = useAuth()
   const [dropdownOpen, setDropdownOpen] = useState(false)
+  const [adminDropdownOpen, setAdminDropdownOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const adminDropdownRef = useRef<HTMLDivElement>(null)
 
-  // Close dropdown when clicking outside
+  // Close dropdowns when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setDropdownOpen(false)
+      }
+      if (adminDropdownRef.current && !adminDropdownRef.current.contains(event.target as Node)) {
+        setAdminDropdownOpen(false)
       }
     }
     document.addEventListener("mousedown", handleClickOutside)
@@ -26,6 +31,8 @@ export function UserHeader() {
   if (isLoading || !user) {
     return null
   }
+
+  const isAdmin = user.role === 'admin'
 
   return (
     <div className="fixed top-0 left-0 right-0 z-50 bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60 border-b border-border">
@@ -37,6 +44,47 @@ export function UserHeader() {
         
         <div className="flex items-center gap-4">
           <WorkspaceSelector />
+
+          {/* Admin dropdown - only for admins */}
+          {isAdmin && (
+            <div className="relative" ref={adminDropdownRef}>
+              <button
+                onClick={() => setAdminDropdownOpen(!adminDropdownOpen)}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted/50 transition-colors text-amber-600 dark:text-amber-400"
+              >
+                <Shield className="w-4 h-4" />
+                <span className="hidden sm:inline text-sm font-medium">Admin</span>
+                <ChevronDown className="w-4 h-4" />
+              </button>
+
+              {adminDropdownOpen && (
+                <div className="absolute right-0 mt-2 w-48 bg-card border border-border rounded-lg shadow-lg py-1 z-50">
+                  <button
+                    onClick={() => {
+                      setAdminDropdownOpen(false)
+                      router.push('/admin/departments')
+                    }}
+                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-foreground hover:bg-muted/50 transition-colors"
+                  >
+                    <Building2 className="w-4 h-4" />
+                    Manage Departments
+                  </button>
+                  
+                  <button
+                    onClick={() => {
+                      setAdminDropdownOpen(false)
+                      // TODO: Implement user management
+                      alert('User management coming soon!')
+                    }}
+                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground hover:bg-muted/50 transition-colors"
+                  >
+                    <Users className="w-4 h-4" />
+                    Manage Users
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
           
           {/* User dropdown */}
           <div className="relative" ref={dropdownRef}>
