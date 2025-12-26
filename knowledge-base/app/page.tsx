@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Spinner } from "@/components/ui/spinner"
 import { useWorkspace } from "@/contexts/WorkspaceContext"
+import { SOPCard, SOP } from "@/components/SOPCard"
 import {
   Upload,
   Search,
@@ -19,6 +20,7 @@ import {
   Trash2,
   ChevronLeft,
   ChevronRight,
+  Plus,
 } from "lucide-react"
 import { Topic, Entry } from "@/lib/types"
 
@@ -37,27 +39,43 @@ interface ActivityLogItem {
   created_at: string
 }
 
+interface Department {
+  id: number
+  name: string
+  workspace_id: number
+}
+
 export default function HomePage() {
   const { currentWorkspace } = useWorkspace()
+  const isOperations = currentWorkspace?.slug === 'operations'
   
+  // Underwriting state
   const [entries, setEntries] = useState<EntryWithNames[]>([])
   const [topics, setTopics] = useState<Topic[]>([])
+  
+  // Operations state
+  const [sops, setSOPs] = useState<SOP[]>([])
+  const [departments, setDepartments] = useState<Department[]>([])
+  
+  // Shared state
   const [activities, setActivities] = useState<ActivityLogItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isLoadingActivities, setIsLoadingActivities] = useState(true)
   
   const [searchQuery, setSearchQuery] = useState("")
   const [topicFilter, setTopicFilter] = useState("all")
+  const [departmentFilter, setDepartmentFilter] = useState("all")
   const [riskFilter, setRiskFilter] = useState("all")
+  const [statusFilter, setStatusFilter] = useState("all")
   const [sortBy, setSortBy] = useState("newest")
   const [selectedEntry, setSelectedEntry] = useState<EntryWithNames | null>(null)
   const [activityLogOpen, setActivityLogOpen] = useState(true)
   const [activityFilter, setActivityFilter] = useState("all")
   const [expandedActivity, setExpandedActivity] = useState<string | null>(null)
 
-  // Define all fetch functions with useCallback BEFORE using them in useEffect
+  // Fetch topics (Underwriting)
   const fetchTopics = useCallback(async () => {
-    if (!currentWorkspace) return
+    if (!currentWorkspace || isOperations) return
     try {
       const params = new URLSearchParams()
       params.append('workspace_id', String(currentWorkspace.id))
@@ -68,10 +86,23 @@ export default function HomePage() {
     } catch (error) {
       console.error('Failed to fetch topics:', error)
     }
-  }, [currentWorkspace])
+  }, [currentWorkspace, isOperations])
 
+  // Fetch departments (Operations)
+  const fetchDepartments = useCallback(async () => {
+    if (!currentWorkspace || !isOperations) return
+    try {
+      const response = await fetch(`/api/departments?workspace_id=${currentWorkspace.id}`)
+      const data = await response.json()
+      setDepartments(data.departments || [])
+    } catch (error) {
+      console.error('Failed to fetch departments:', error)
+    }
+  }, [currentWorkspace, isOperations])
+
+  // Fetch entries (Underwriting)
   const fetchEntries = useCallback(async () => {
-    if (!currentWorkspace) return
+    if (!currentWorkspace || isOperations) return
     setIsLoading(true)
     try {
       const params = new URLSearchParams()
@@ -88,8 +119,30 @@ export default function HomePage() {
     } finally {
       setIsLoading(false)
     }
-  }, [currentWorkspace, topicFilter, riskFilter, searchQuery])
+  }, [currentWorkspace, isOperations, topicFilter, riskFilter, searchQuery])
 
+  // Fetch SOPs (Operations)
+  const fetchSOPs = useCallback(async () => {
+    if (!currentWorkspace || !isOperations) return
+    setIsLoading(true)
+    try {
+      const params = new URLSearchParams()
+      params.append('workspace_id', String(currentWorkspace.id))
+      if (departmentFilter !== 'all') params.append('department_id', departmentFilter)
+      if (statusFilter !== 'all') params.append('status', statusFilter)
+      if (searchQuery) params.append('search', searchQuery)
+
+      const response = await fetch(`/api/sops?${params}`)
+      const data = await response.json()
+      setSOPs(data.sops || [])
+    } catch (error) {
+      console.error('Failed to fetch SOPs:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [currentWorkspace, isOperations, departmentFilter, statusFilter, searchQuery])
+
+  // Fetch activities
   const fetchActivities = useCallback(async (filter?: string) => {
     if (!currentWorkspace) return
     setIsLoadingActivities(true)
@@ -116,21 +169,30 @@ export default function HomePage() {
     }
   }, [currentWorkspace])
 
-  // Fetch entries and topics on load and when workspace changes
+  // Initial data fetch
   useEffect(() => {
     if (currentWorkspace) {
-      fetchTopics()
-      fetchEntries()
+      if (isOperations) {
+        fetchDepartments()
+        fetchSOPs()
+      } else {
+        fetchTopics()
+        fetchEntries()
+      }
       fetchActivities()
     }
-  }, [currentWorkspace, fetchTopics, fetchEntries, fetchActivities])
+  }, [currentWorkspace, isOperations, fetchTopics, fetchDepartments, fetchEntries, fetchSOPs, fetchActivities])
 
-  // Refetch entries when filters change
+  // Refetch when filters change
   useEffect(() => {
     if (currentWorkspace) {
-      fetchEntries()
+      if (isOperations) {
+        fetchSOPs()
+      } else {
+        fetchEntries()
+      }
     }
-  }, [fetchEntries, currentWorkspace])
+  }, [currentWorkspace, isOperations, fetchEntries, fetchSOPs])
 
   // Refetch activities when filter changes
   useEffect(() => {
@@ -139,7 +201,7 @@ export default function HomePage() {
     }
   }, [activityFilter, fetchActivities, currentWorkspace])
 
-  // Sort entries client-side
+  // Sort entries client-side (Underwriting)
   const sortedEntries = useMemo(() => {
     const sorted = [...entries]
     sorted.sort((a, b) => {
@@ -156,6 +218,9 @@ export default function HomePage() {
     })
     return sorted
   }, [entries, sortBy])
+
+  // Sort SOPs (Operations) - already sorted by API
+  const sortedSOPs = sops
 
   const getTopicBadgeColor = (topic: string) => {
     switch (topic) {
@@ -199,8 +264,8 @@ export default function HomePage() {
 
   const getActivityIconColor = (action: string) => {
     if (action.includes('upload')) return "bg-blue-100 text-blue-700"
-    if (action.includes('created') || action.includes('added')) return "bg-green-100 text-green-700"
-    if (action.includes('updated')) return "bg-yellow-100 text-yellow-700"
+    if (action.includes('created') || action.includes('added') || action.includes('approved')) return "bg-green-100 text-green-700"
+    if (action.includes('updated') || action.includes('submitted')) return "bg-yellow-100 text-yellow-700"
     if (action.includes('deleted')) return "bg-red-100 text-red-700"
     return "bg-gray-100 text-gray-700"
   }
@@ -271,12 +336,21 @@ export default function HomePage() {
                 Activity
                 {activityLogOpen ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
               </Button>
-              <Link href="/upload">
-                <Button className="h-11 px-6 font-semibold flex items-center gap-2 whitespace-nowrap">
-                  <Upload className="w-4 h-4" />
-                  Upload New Document
-                </Button>
-              </Link>
+              {isOperations ? (
+                <Link href="/sop/new">
+                  <Button className="h-11 px-6 font-semibold flex items-center gap-2 whitespace-nowrap bg-emerald-600 hover:bg-emerald-700">
+                    <Plus className="w-4 h-4" />
+                    Create New SOP
+                  </Button>
+                </Link>
+              ) : (
+                <Link href="/upload">
+                  <Button className="h-11 px-6 font-semibold flex items-center gap-2 whitespace-nowrap">
+                    <Upload className="w-4 h-4" />
+                    Upload New Document
+                  </Button>
+                </Link>
+              )}
             </div>
           </div>
 
@@ -285,7 +359,7 @@ export default function HomePage() {
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
             <Input
               type="text"
-              placeholder="Search scenarios, documents, guidance..."
+              placeholder={isOperations ? "Search SOPs by title..." : "Search scenarios, documents, guidance..."}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-12 h-12 text-base"
@@ -294,48 +368,80 @@ export default function HomePage() {
 
           {/* Filter Dropdowns */}
           <div className="flex flex-wrap gap-3 mb-6">
-            <Select value={topicFilter} onValueChange={setTopicFilter}>
-              <SelectTrigger className="w-[180px] h-10">
-                <SelectValue placeholder="Topic" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Topics</SelectItem>
-                {topics.map((topic) => (
-                  <SelectItem key={topic.id} value={topic.name}>
-                    {topic.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {isOperations ? (
+              <>
+                <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+                  <SelectTrigger className="w-[180px] h-10">
+                    <SelectValue placeholder="Department" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Departments</SelectItem>
+                    {departments.map((dept) => (
+                      <SelectItem key={dept.id} value={String(dept.id)}>
+                        {dept.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
 
-            <Select value={riskFilter} onValueChange={setRiskFilter}>
-              <SelectTrigger className="w-[180px] h-10">
-                <SelectValue placeholder="Risk Level" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Risk Levels</SelectItem>
-                <SelectItem value="low">Low</SelectItem>
-                <SelectItem value="medium">Medium</SelectItem>
-                <SelectItem value="high">High</SelectItem>
-              </SelectContent>
-            </Select>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-[180px] h-10">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    <SelectItem value="draft">Draft</SelectItem>
+                    <SelectItem value="pending">Pending Approval</SelectItem>
+                    <SelectItem value="approved">Approved</SelectItem>
+                  </SelectContent>
+                </Select>
+              </>
+            ) : (
+              <>
+                <Select value={topicFilter} onValueChange={setTopicFilter}>
+                  <SelectTrigger className="w-[180px] h-10">
+                    <SelectValue placeholder="Topic" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Topics</SelectItem>
+                    {topics.map((topic) => (
+                      <SelectItem key={topic.id} value={topic.name}>
+                        {topic.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
 
-            <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className="w-[180px] h-10">
-                <SelectValue placeholder="Sort by" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="newest">Newest</SelectItem>
-                <SelectItem value="oldest">Oldest</SelectItem>
-                <SelectItem value="topic-az">Topic A-Z</SelectItem>
-              </SelectContent>
-            </Select>
+                <Select value={riskFilter} onValueChange={setRiskFilter}>
+                  <SelectTrigger className="w-[180px] h-10">
+                    <SelectValue placeholder="Risk Level" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Risk Levels</SelectItem>
+                    <SelectItem value="low">Low</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                    <SelectItem value="high">High</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Select value={sortBy} onValueChange={setSortBy}>
+                  <SelectTrigger className="w-[180px] h-10">
+                    <SelectValue placeholder="Sort by" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="newest">Newest</SelectItem>
+                    <SelectItem value="oldest">Oldest</SelectItem>
+                    <SelectItem value="topic-az">Topic A-Z</SelectItem>
+                  </SelectContent>
+                </Select>
+              </>
+            )}
           </div>
 
           {/* Stats Row */}
           <div className="flex items-center gap-6 mb-6 text-sm text-muted-foreground">
             <span>
-              Showing {sortedEntries.length} {sortedEntries.length === 1 ? "entry" : "entries"}
+              Showing {isOperations ? sortedSOPs.length : sortedEntries.length} {isOperations ? (sortedSOPs.length === 1 ? "SOP" : "SOPs") : (sortedEntries.length === 1 ? "entry" : "entries")}
             </span>
           </div>
 
@@ -343,63 +449,91 @@ export default function HomePage() {
           {isLoading ? (
             <div className="flex flex-col items-center justify-center py-24">
               <Spinner className="w-8 h-8 mb-4" />
-              <p className="text-muted-foreground">Loading entries...</p>
+              <p className="text-muted-foreground">Loading {isOperations ? 'SOPs' : 'entries'}...</p>
             </div>
-          ) : sortedEntries.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-24 text-center">
-              <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mb-5">
-                <FileText className="w-10 h-10 text-muted-foreground" />
+          ) : isOperations ? (
+            // Operations: SOP Cards
+            sortedSOPs.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-24 text-center">
+                <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mb-5">
+                  <FileText className="w-10 h-10 text-muted-foreground" />
+                </div>
+                <h3 className="text-2xl font-bold text-foreground mb-2">No SOPs yet</h3>
+                <p className="text-base text-muted-foreground mb-6 max-w-md">
+                  Create your first Standard Operating Procedure
+                </p>
+                <Link href="/sop/new">
+                  <Button className="h-11 px-6 font-semibold flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700">
+                    <Plus className="w-4 h-4" />
+                    Create New SOP
+                  </Button>
+                </Link>
               </div>
-              <h3 className="text-2xl font-bold text-foreground mb-2">Your knowledge base is empty</h3>
-              <p className="text-base text-muted-foreground mb-6 max-w-md">
-                Upload your first document to get started building your knowledge base
-              </p>
-              <Link href="/upload">
-                <Button className="h-11 px-6 font-semibold flex items-center gap-2">
-                  <Upload className="w-4 h-4" />
-                  Upload Document
-                </Button>
-              </Link>
-            </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                {sortedSOPs.map((sop) => (
+                  <SOPCard key={sop.id} sop={sop} />
+                ))}
+              </div>
+            )
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {sortedEntries.map((entry) => (
-                <button
-                  key={entry.id}
-                  onClick={() => setSelectedEntry(entry)}
-                  className="bg-card border border-border rounded-lg p-5 hover:border-primary/50 hover:shadow-md transition-all duration-200 text-left group"
-                >
-                  <div className="mb-3">
-                    <span
-                      className={`inline-block px-2.5 py-1 rounded-md text-xs font-medium border ${getTopicBadgeColor(entry.topic_name)}`}
-                    >
-                      {entry.topic_name}
-                    </span>
-                  </div>
+            // Underwriting: Entry Cards
+            sortedEntries.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-24 text-center">
+                <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mb-5">
+                  <FileText className="w-10 h-10 text-muted-foreground" />
+                </div>
+                <h3 className="text-2xl font-bold text-foreground mb-2">Your knowledge base is empty</h3>
+                <p className="text-base text-muted-foreground mb-6 max-w-md">
+                  Upload your first document to get started building your knowledge base
+                </p>
+                <Link href="/upload">
+                  <Button className="h-11 px-6 font-semibold flex items-center gap-2">
+                    <Upload className="w-4 h-4" />
+                    Upload Document
+                  </Button>
+                </Link>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                {sortedEntries.map((entry) => (
+                  <button
+                    key={entry.id}
+                    onClick={() => setSelectedEntry(entry)}
+                    className="bg-card border border-border rounded-lg p-5 hover:border-primary/50 hover:shadow-md transition-all duration-200 text-left group"
+                  >
+                    <div className="mb-3">
+                      <span
+                        className={`inline-block px-2.5 py-1 rounded-md text-xs font-medium border ${getTopicBadgeColor(entry.topic_name)}`}
+                      >
+                        {entry.topic_name}
+                      </span>
+                    </div>
 
-                  <h3 className="text-lg font-bold text-foreground mb-3 leading-snug group-hover:text-primary transition-colors">
-                    {entry.subtopic_name}
-                  </h3>
+                    <h3 className="text-lg font-bold text-foreground mb-3 leading-snug group-hover:text-primary transition-colors">
+                      {entry.subtopic_name}
+                    </h3>
 
-                  <p className="text-sm text-muted-foreground leading-relaxed mb-4">{truncateText(entry.scenario)}</p>
+                    <p className="text-sm text-muted-foreground leading-relaxed mb-4">{truncateText(entry.scenario)}</p>
 
-                  <div className="flex items-center justify-between gap-3 pt-3 border-t border-border">
-                    <span
-                      className={`px-2.5 py-1 rounded-full text-xs font-medium border ${getRiskBadgeColor(entry.risk_level)}`}
-                    >
-                      {entry.risk_level} Risk
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {entry.last_reviewed && new Date(entry.last_reviewed).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                      })}
-                    </span>
-                  </div>
-                </button>
-              ))}
-            </div>
+                    <div className="flex items-center justify-between gap-3 pt-3 border-t border-border">
+                      <span
+                        className={`px-2.5 py-1 rounded-full text-xs font-medium border ${getRiskBadgeColor(entry.risk_level)}`}
+                      >
+                        {entry.risk_level} Risk
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {entry.last_reviewed && new Date(entry.last_reviewed).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
+                      </span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )
           )}
         </div>
       </div>
@@ -418,7 +552,7 @@ export default function HomePage() {
                 <X className="w-4 h-4" />
               </Button>
             </div>
-            <p className="text-sm text-muted-foreground mb-4">Recent changes to your knowledge base</p>
+            <p className="text-sm text-muted-foreground mb-4">Recent changes to your {isOperations ? 'SOPs' : 'knowledge base'}</p>
 
             <Select value={activityFilter} onValueChange={setActivityFilter}>
               <SelectTrigger className="w-full h-9 text-sm">
@@ -446,7 +580,7 @@ export default function HomePage() {
                 </div>
                 <p className="text-sm font-medium text-foreground mb-1">No activity yet</p>
                 <p className="text-xs text-muted-foreground">
-                  Activity will appear here as you upload and edit documents
+                  Activity will appear here as you {isOperations ? 'create and edit SOPs' : 'upload and edit documents'}
                 </p>
               </div>
             ) : (
@@ -479,7 +613,7 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* View Modal */}
+      {/* View Modal (Underwriting only) */}
       {selectedEntry && (
         <div
           className="fixed inset-0 bg-black/60 flex items-center justify-end p-0 z-50 animate-in fade-in duration-200"
