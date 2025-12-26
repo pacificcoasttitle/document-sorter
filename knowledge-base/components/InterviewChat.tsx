@@ -4,7 +4,7 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { ChevronLeft, ChevronRight, Sparkles, Bot, User } from "lucide-react"
-import { interviewQuestions } from "@/lib/claude-sop"
+import { interviewQuestions } from "@/lib/sop-questions"
 
 interface InterviewChatProps {
   answers: Record<string, string>
