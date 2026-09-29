@@ -132,7 +132,7 @@ export function InterviewChat({
         <Button
           onClick={handleNext}
           disabled={(!canProceed && !isLastQuestion) || isGenerating}
-          className={`gap-2 ${isLastQuestion ? 'bg-emerald-600 hover:bg-emerald-700' : ''}`}
+          className={`gap-2 ${isLastQuestion ? 'bg-primary hover:bg-primary/90' : ''}`}
         >
           {isGenerating ? (
             <>

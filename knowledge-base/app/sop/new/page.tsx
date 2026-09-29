@@ -234,7 +234,7 @@ export default function NewSOPPage() {
             <div key={s} className="flex items-center gap-2">
               <div
                 className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium
-                  ${step === s ? 'bg-emerald-600 text-white' : 
+                  ${step === s ? 'bg-primary text-white' :
                     ['basics', 'interview', 'preview'].indexOf(step) > index 
                       ? 'bg-emerald-100 text-emerald-600' 
                       : 'bg-muted text-muted-foreground'}`}
@@ -299,7 +299,7 @@ export default function NewSOPPage() {
                 <Button
                   onClick={handleBasicsNext}
                   disabled={!title.trim() || !departmentId}
-                  className="h-11 px-8 bg-emerald-600 hover:bg-emerald-700"
+                  className="h-11 px-8 bg-primary hover:bg-primary/90"
                 >
                   Continue
                   <ChevronRight className="w-4 h-4 ml-2" />
@@ -349,7 +349,7 @@ export default function NewSOPPage() {
                   <Button
                     onClick={() => handleSave(true)}
                     disabled={isSaving}
-                    className="bg-emerald-600 hover:bg-emerald-700"
+                    className="bg-primary hover:bg-primary/90"
                   >
                     {isSaving ? <Spinner className="w-4 h-4 mr-2" /> : null}
                     Submit for Approval

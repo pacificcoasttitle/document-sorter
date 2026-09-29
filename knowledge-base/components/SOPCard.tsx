@@ -44,17 +44,17 @@ export function SOPCard({ sop }: SOPCardProps) {
 
   return (
     <Link href={`/sop/${sop.id}`}>
-      <div className="bg-card border border-border rounded-lg p-5 hover:border-emerald-500/50 hover:shadow-md transition-all duration-200 cursor-pointer group">
+      <div className="bg-card border border-border rounded-lg p-5  hover:shadow-md transition-all duration-200 cursor-pointer group">
         {/* Department Badge */}
         <div className="flex items-center justify-between gap-2 mb-3">
-          <span className="inline-block px-2.5 py-1 rounded-md text-xs font-medium border bg-emerald-100 text-emerald-700 border-emerald-200">
+          <span className="inline-block px-2.5 py-1 rounded-md text-xs font-medium bg-slate-100 text-primary">
             {sop.department_name}
           </span>
           <StatusBadge status={sop.status} size="sm" />
         </div>
 
         {/* Title */}
-        <h3 className="text-lg font-bold text-foreground mb-2 leading-snug group-hover:text-emerald-600 transition-colors line-clamp-2">
+        <h3 className="text-lg font-bold text-foreground mb-2 leading-snug group-hover:text-primary transition-colors line-clamp-2">
           {sop.title}
         </h3>
 

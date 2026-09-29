@@ -6,6 +6,7 @@ import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "@/components/AuthProvider";
 import { UserHeader } from "@/components/UserHeader";
+import { AppNavigation } from "@/components/AppNavigation";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -34,7 +35,8 @@ export default function RootLayout({
           <WorkspaceProvider>
             <EntriesProvider>
               <UserHeader />
-              <div className="pt-14">
+              <div className="tessa-app pt-16">
+                <AppNavigation />
                 {children}
               </div>
               <Toaster />

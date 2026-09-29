@@ -49,7 +49,7 @@ function LoginForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
       <div>
-        <Label htmlFor="email" className="text-slate-300 mb-2 block">
+        <Label htmlFor="email" className="text-foreground mb-2 block">
           Email
         </Label>
         <Input
@@ -59,12 +59,12 @@ function LoginForm() {
           onChange={(e) => setEmail(e.target.value)}
           placeholder="you@company.com"
           required
-          className="bg-white/5 border-white/10 text-white placeholder:text-slate-500 focus:border-blue-500 focus:ring-blue-500"
+          className="bg-slate-100 text-foreground placeholder:text-muted-foreground"
         />
       </div>
 
       <div>
-        <Label htmlFor="password" className="text-slate-300 mb-2 block">
+        <Label htmlFor="password" className="text-foreground mb-2 block">
           Password
         </Label>
         <Input
@@ -74,12 +74,12 @@ function LoginForm() {
           onChange={(e) => setPassword(e.target.value)}
           placeholder="••••••••"
           required
-          className="bg-white/5 border-white/10 text-white placeholder:text-slate-500 focus:border-blue-500 focus:ring-blue-500"
+          className="bg-slate-100 text-foreground placeholder:text-muted-foreground"
         />
       </div>
 
       {error && (
-        <div className="bg-red-500/20 border border-red-500/50 rounded-lg px-4 py-3 text-red-200 text-sm">
+        <div className="bg-red-50 rounded-lg px-4 py-3 text-red-800 text-sm">
           {error}
         </div>
       )}
@@ -87,7 +87,7 @@ function LoginForm() {
       <Button
         type="submit"
         disabled={isLoading}
-        className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-all duration-200"
+        className="w-full h-12 bg-primary hover:bg-primary/90 text-white font-semibold rounded-lg transition-all duration-200"
       >
         {isLoading ? (
           <span className="flex items-center gap-2">
@@ -104,21 +104,21 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center px-4 -mt-14">
+    <div className="min-h-screen bg-background flex items-center justify-center px-4 -mt-16">
       <div className="w-full max-w-md">
         {/* Logo / Title */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">Tessa</h1>
-          <p className="text-slate-400">Knowledge Management System</p>
+          <h1 className="text-4xl font-bold text-primary mb-2">Tessa</h1>
+          <p className="text-muted-foreground">Knowledge Management System</p>
         </div>
 
         {/* Login Card */}
-        <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 shadow-2xl border border-white/10">
-          <h2 className="text-2xl font-semibold text-white mb-6 text-center">Sign In</h2>
+        <div className="bg-white rounded-2xl p-8 shadow-sm">
+          <h2 className="text-2xl font-semibold text-primary mb-6 text-center">Sign In</h2>
           
           <Suspense fallback={
             <div className="flex items-center justify-center py-8">
-              <Spinner className="w-8 h-8 text-white" />
+              <Spinner className="w-8 h-8 text-primary" />
             </div>
           }>
             <LoginForm />

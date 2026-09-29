@@ -52,15 +52,17 @@ export function WorkspaceSelector() {
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors hover:bg-accent ${getWorkspaceColor(currentWorkspace.slug)}`}
+        aria-label={`Switch workspace: ${currentWorkspace.name}`}
+        aria-expanded={isOpen}
+        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors hover:bg-accent ${getWorkspaceColor(currentWorkspace.slug)}`}
       >
         {getWorkspaceIcon(currentWorkspace.slug)}
-        <span>{currentWorkspace.name}</span>
+        <span className="hidden sm:inline">{currentWorkspace.name}</span>
         <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {isOpen && (
-        <div className="absolute top-full left-0 mt-2 w-72 bg-popover border border-border rounded-lg shadow-lg z-50 overflow-hidden">
+        <div className="absolute top-full right-0 mt-2 w-64 max-w-[85vw] bg-popover rounded-xl shadow-lg z-50 overflow-hidden">
           <div className="p-2">
             <p className="px-2 py-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wider">
               Switch Workspace

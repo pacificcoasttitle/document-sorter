@@ -204,7 +204,7 @@ export default function EditSOPPage({ params }: { params: Promise<{ id: string }
           <Button
             onClick={handleSave}
             disabled={isSaving}
-            className="bg-emerald-600 hover:bg-emerald-700"
+            className="bg-primary hover:bg-primary/90"
           >
             {isSaving ? <Spinner className="w-4 h-4 mr-2" /> : null}
             Save Changes

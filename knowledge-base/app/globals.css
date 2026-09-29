@@ -5,19 +5,19 @@
 
 :root {
   /* Clean white background */
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.2 0 0);
+  --background: #F8FAFC;
+  --foreground: #10213A;
 
   /* Card colors */
-  --card: oklch(0.99 0 0);
-  --card-foreground: oklch(0.2 0 0);
+  --card: #FFFFFF;
+  --card-foreground: #10213A;
 
   /* Popover */
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.2 0 0);
 
   /* Blue accent for primary actions */
-  --primary: oklch(0.55 0.18 250);
+  --primary: #10213A;
   --primary-foreground: oklch(0.99 0 0);
 
   /* Light gray for secondary elements */
@@ -26,7 +26,7 @@
 
   /* Muted elements */
   --muted: oklch(0.96 0 0);
-  --muted-foreground: oklch(0.5 0 0);
+  --muted-foreground: #526175;
 
   /* Accent hover states */
   --accent: oklch(0.97 0 0);
@@ -39,7 +39,7 @@
   /* Subtle gray borders */
   --border: oklch(0.9 0 0);
   --input: oklch(0.9 0 0);
-  --ring: oklch(0.55 0.18 250);
+  --ring: #F26B2B;
 
   /* Chart colors */
   --chart-1: oklch(0.55 0.18 250);
@@ -48,7 +48,28 @@
   --chart-4: oklch(0.7 0.1 260);
   --chart-5: oklch(0.6 0.14 240);
 
-  --radius: 0.5rem;
+  --radius: 0.75rem;
+}
+
+/* Shared presentation for the existing page cards. Keep status/error colors,
+   tables, upload drop zones and keyboard focus indicators meaningful. */
+.tessa-app :where(.bg-card.rounded-lg, .bg-card.rounded-xl) {
+  border-width: 0;
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 3px rgb(16 33 58 / 8%);
+}
+.tessa-app :where(h1) { font-size: 2rem; line-height: 1.2; letter-spacing: -0.025em; }
+.tessa-app :where(p) { line-height: 1.65; }
+/* These legacy pages previously reserved the header space a second time. */
+.tessa-app > .min-h-screen.pt-20 { padding-top: 0; }
+.tessa-app > .min-h-screen > [class*="max-w-"][class*="py-12"] { padding-top: 2rem; }
+.tessa-app :where(button, a, input, select, textarea):focus-visible {
+  outline: 2px solid #F26B2B;
+  outline-offset: 3px;
+}
+@media (max-width: 640px) {
+  .tessa-app :where(h1) { font-size: 1.75rem; }
+  .tessa-app :where(.px-6) { padding-left: 1rem; padding-right: 1rem; }
 }
 
 .dark {

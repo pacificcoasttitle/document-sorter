@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { useAuth } from "@/components/AuthProvider"
 import { WorkspaceSelector } from "@/components/WorkspaceSelector"
 import { LogOut, User, Settings, ChevronDown, Shield, HelpCircle } from "lucide-react"
@@ -30,19 +31,20 @@ export function UserHeader() {
   const isAdmin = user.role === 'admin'
 
   return (
-    <div className="fixed top-0 left-0 right-0 z-50 bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60 border-b border-border">
-      <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <h1 className="text-lg font-semibold text-foreground">Tessa</h1>
-          <span className="text-sm text-muted-foreground hidden sm:inline">Knowledge Tool</span>
-        </div>
+    <div className="fixed top-0 left-0 right-0 z-50 bg-white shadow-sm">
+      <div className="max-w-[1500px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-2">
+        <Link href="/" className="flex items-center gap-3" aria-label="Tessa home">
+          <span className="text-xl font-bold tracking-tight text-foreground">Tessa<span className="text-orange-600">.</span></span>
+          <span className="text-sm text-muted-foreground hidden lg:inline">Knowledge & standards</span>
+        </Link>
         
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-1 sm:gap-3">
           <WorkspaceSelector />
 
           {/* Help link */}
           <button
             onClick={() => router.push('/help')}
+            aria-label="Help"
             className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted/50 transition-colors text-muted-foreground hover:text-foreground"
           >
             <HelpCircle className="w-4 h-4" />
@@ -53,6 +55,7 @@ export function UserHeader() {
           {isAdmin && (
             <button
               onClick={() => router.push('/admin')}
+              aria-label="Administration"
               className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors text-amber-600 dark:text-amber-400"
             >
               <Shield className="w-4 h-4" />
@@ -64,6 +67,8 @@ export function UserHeader() {
           <div className="relative" ref={dropdownRef}>
             <button
               onClick={() => setDropdownOpen(!dropdownOpen)}
+              aria-label="Account menu"
+              aria-expanded={dropdownOpen}
               className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted/50 transition-colors"
             >
               <User className="w-4 h-4 text-muted-foreground" />

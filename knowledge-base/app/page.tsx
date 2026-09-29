@@ -69,7 +69,7 @@ export default function HomePage() {
   const [statusFilter, setStatusFilter] = useState("all")
   const [sortBy, setSortBy] = useState("newest")
   const [selectedEntry, setSelectedEntry] = useState<EntryWithNames | null>(null)
-  const [activityLogOpen, setActivityLogOpen] = useState(true)
+  const [activityLogOpen, setActivityLogOpen] = useState(false)
   const [activityFilter, setActivityFilter] = useState("all")
   const [expandedActivity, setExpandedActivity] = useState<string | null>(null)
 
@@ -318,15 +318,16 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-background flex">
-      <div className={`flex-1 transition-all duration-300 ${activityLogOpen ? "mr-80" : "mr-0"}`}>
+      <div className={`min-w-0 flex-1 transition-all duration-300 ${activityLogOpen ? "xl:mr-80" : "mr-0"}`}>
         <div className="max-w-7xl mx-auto px-6 py-8">
           {/* Header Section */}
-          <div className="flex items-start justify-between mb-8 gap-6">
+          <div className="flex flex-wrap items-start justify-between mb-8 gap-6">
             <div>
+              <p className="text-xs font-semibold tracking-widest text-orange-600 mb-3">TESSA / {isOperations ? 'OPERATIONS' : 'UNDERWRITING'}</p>
               <h1 className="text-4xl font-bold text-foreground mb-2 text-balance">{title}</h1>
               <p className="text-base text-muted-foreground">{subtitle}</p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <Button
                 variant="outline"
                 onClick={() => setActivityLogOpen(!activityLogOpen)}
@@ -338,7 +339,7 @@ export default function HomePage() {
               </Button>
               {isOperations ? (
                 <Link href="/sop/new">
-                  <Button className="h-11 px-6 font-semibold flex items-center gap-2 whitespace-nowrap bg-emerald-600 hover:bg-emerald-700">
+                  <Button className="h-11 px-6 font-semibold flex items-center gap-2 whitespace-nowrap">
                     <Plus className="w-4 h-4" />
                     Create New SOP
                   </Button>
@@ -355,6 +356,7 @@ export default function HomePage() {
           </div>
 
           {/* Search Bar */}
+          {isOperations && <div className="mb-6 rounded-xl bg-primary p-5 text-white"><strong className="text-lg">A clear process. A consistent result.</strong><p className="mt-1 text-sm text-slate-200">Find a procedure, check its status, and open the steps your team needs.</p></div>}
           {!isOperations && (
             <Link href="/prelim-standards" className="block mb-6 rounded-xl bg-slate-900 p-5 text-white">
               <strong className="text-lg">Prelim standards</strong>
@@ -545,8 +547,10 @@ export default function HomePage() {
       </div>
 
       {/* Activity Log Sidebar */}
+      {activityLogOpen && <button aria-label="Dismiss activity panel" onClick={()=>setActivityLogOpen(false)} className="fixed inset-0 top-16 bg-slate-900/20 z-30 xl:hidden" />}
       <div
-        className={`fixed right-0 top-14 h-[calc(100%-3.5rem)] w-80 bg-muted/30 border-l border-border shadow-lg transition-transform duration-300 z-40 ${
+        inert={!activityLogOpen}
+        className={`fixed right-0 top-16 h-[calc(100%-4rem)] w-80 max-w-[90vw] bg-background shadow-lg transition-transform duration-300 z-40 ${
           activityLogOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
@@ -554,7 +558,7 @@ export default function HomePage() {
           <div className="bg-card border-b border-border px-6 py-5">
             <div className="flex items-start justify-between mb-1">
               <h2 className="text-lg font-bold text-foreground">Activity Log</h2>
-              <Button variant="ghost" size="sm" onClick={() => setActivityLogOpen(false)} className="h-8 w-8 p-0 -mr-2">
+              <Button aria-label="Close activity panel" variant="ghost" size="sm" onClick={() => setActivityLogOpen(false)} className="h-8 w-8 p-0 -mr-2">
                 <X className="w-4 h-4" />
               </Button>
             </div>

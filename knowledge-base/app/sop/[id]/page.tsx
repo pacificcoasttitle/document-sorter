@@ -195,7 +195,7 @@ export default function ViewSOPPage({ params }: { params: Promise<{ id: string }
                 <Button
                   onClick={handleSubmitForApproval}
                   disabled={isSubmitting}
-                  className="bg-emerald-600 hover:bg-emerald-700"
+                  className="bg-primary hover:bg-primary/90"
                 >
                   {isSubmitting ? <Spinner className="w-4 h-4 mr-2" /> : <Send className="w-4 h-4 mr-2" />}
                   Submit for Approval
