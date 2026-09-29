@@ -15,6 +15,8 @@ test('database-backed reference lifecycle and access controls',async()=>{
  const dir=await fs.mkdtemp(path.join(process.cwd(),'.prelim-test-'));
  try{
   await db.exec(await fs.readFile(new URL('../migrations/001_prelim_references.sql',import.meta.url),'utf8'));
+  await db.exec(await fs.readFile(new URL('../migrations/002_source_wording_approval.sql',import.meta.url),'utf8'));
+  await db.exec(await fs.readFile(new URL('../migrations/002_source_wording_approval.sql',import.meta.url),'utf8'));
   await db.exec("CREATE TABLE users(id INTEGER PRIMARY KEY,name TEXT,role TEXT); INSERT INTO users VALUES(1,'Reviewer','admin'),(2,'Head','department_head'),(3,'Reader','viewer');");
   const pool={query:async(sql,values)=>{const r=await db.query(sql,values);return {rows:r.rows,rowCount:r.rows.length||r.affectedRows||0};},connect:async()=>({...pool,release(){}})};
   globalThis.__prelimTestPool=pool;
@@ -51,5 +53,23 @@ test('database-backed reference lifecycle and access controls',async()=>{
   assert.ok(events.some(e=>e.action==='superseded'));
   assert.equal((await change(1,'retire',draft)).status,200);
   assert.equal((await (await route.GET(request(3,null))).json()).revisions.length,0);
+  // Source publication is visible but cannot bypass guidance completeness checks.
+  const imported={...emptyReference,title:'Source only',wording:'Original source',source:'Synthetic code book'};
+  let source=(await (await change(1,'create',null,imported)).json()).revision;
+  await db.query("UPDATE prelim_reference_revisions SET status='source_approved',approved_by='Test source approval',approved_at=NOW() WHERE id=$1",[source.id]);
+  source=(await (await route.GET(request(3,null))).json()).revisions[0];
+  assert.equal(source.status,'source_approved');
+  assert.equal((await (await route.GET(request(3,null,'?view=approved'))).json()).revisions.length,0);
+  assert.equal((await (await route.GET(request(3,null,'?view=draft'))).json()).revisions.length,0);
+  assert.equal((await change(1,'save',source,content)).status,409);
+  let revision=(await (await change(1,'revise',source)).json()).revision;
+  assert.equal((await change(1,'submit',revision)).status,400);
+  revision=(await (await change(1,'save',revision,content)).json()).revision;
+  revision=(await (await change(1,'submit',revision)).json()).revision;
+  revision=(await (await change(1,'approve',revision)).json()).revision;
+  assert.equal(revision.status,'approved');
+  const published=(await (await route.GET(request(3,null))).json()).revisions;
+  assert.equal(published.length,1);assert.equal(published[0].id,revision.id);
+  assert.equal((await db.query('SELECT status FROM prelim_reference_revisions WHERE id=$1',[source.id])).rows[0].status,'retired');
  }finally{await db.close();delete globalThis.__prelimTestPool;await fs.rm(dir,{recursive:true,force:true});}
 });

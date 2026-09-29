@@ -1,4 +1,5 @@
-export type ReferenceStatus = 'draft' | 'pending' | 'approved' | 'retired';
+export type ReferenceStatus = 'draft' | 'pending' | 'source_approved' | 'approved' | 'retired';
+export const referenceStatusLabel:Record<ReferenceStatus,string>={draft:'Draft',pending:'Awaiting approval',source_approved:'Approved source wording',approved:'Approved guidance & formatting',retired:'Retired'};
 export interface ReferenceContent {
   code: string; title: string; topic: string; matterType: string;
   scenario: string; guidance: string; documents: string; steps: string;
@@ -32,7 +33,7 @@ export function canTransition(from: ReferenceStatus, action: string, role: strin
   if (action === 'submit') return from === 'draft';
   if (action === 'return') return from === 'pending';
   if (action === 'approve') return from === 'pending' && role === 'admin';
-  if (action === 'retire') return from === 'approved' && role === 'admin';
+  if (action === 'retire') return ['approved','source_approved'].includes(from) && role === 'admin';
   return false;
 }
 // Split into safe text runs. Never interpret source wording as HTML.

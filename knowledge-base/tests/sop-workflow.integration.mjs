@@ -1,0 +1,40 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import {createRequire} from 'node:module';
+import {PGlite} from '@electric-sql/pglite';
+import {build} from 'esbuild';
+import jwt from 'jsonwebtoken';
+import {NextRequest} from 'next/server.js';
+test('SOP approval uses server identity and guarded transitions',async()=>{
+ const db=new PGlite();const dir=await fs.mkdtemp(path.join(process.cwd(),'.sop-test-'));
+ try{
+  await db.exec(`CREATE TABLE users(id INT PRIMARY KEY,name TEXT,role TEXT);INSERT INTO users VALUES(1,'Admin','admin'),(2,'Owner','department_head'),(3,'Reader','viewer'),(4,'Other','department_head');
+   CREATE TABLE workspaces(id INT,slug TEXT);INSERT INTO workspaces VALUES(2,'operations');
+   CREATE TABLE departments(id INT,workspace_id INT);INSERT INTO departments VALUES(7,2);
+   CREATE TABLE sops(id SERIAL PRIMARY KEY,workspace_id INT,title TEXT,purpose TEXT,scope TEXT,responsible_party TEXT,trigger_event TEXT,steps TEXT,exceptions TEXT,related_policies TEXT,effective_date DATE,review_date DATE,department_id INT,status TEXT,owner_id INT,approved_by INT,approved_at TIMESTAMPTZ,updated_at TIMESTAMPTZ DEFAULT NOW());
+   CREATE TABLE activity_log(action TEXT,entity_type TEXT,entity_id INT,details TEXT,user_name TEXT,workspace_id INT);`);
+  const pool={query:async(sql,args)=>{const r=await db.query(sql,args);return {rows:r.rows,rowCount:r.rows.length||r.affectedRows||0};},connect:async()=>({...pool,release(){}})};
+  globalThis.__sopPool=pool;
+  const outfile=path.join(dir,'workflow.cjs');
+  await build({entryPoints:['lib/sop-workflow.ts'],outfile,bundle:true,platform:'node',format:'cjs',packages:'external',plugins:[{name:'db',setup(b){b.onResolve({filter:/^@\/lib\/db$/},()=>({path:'db',namespace:'test'}));b.onLoad({filter:/.*/,namespace:'test'},()=>({contents:'export default globalThis.__sopPool;'}));}}]});
+  process.env.JWT_SECRET='test-only';
+  const {sopMutation}=createRequire(import.meta.url)(outfile);
+  const call=(user,action,id,body={})=>sopMutation(new NextRequest('http://localhost/api/sops',{method:'POST',headers:{cookie:'auth-token='+jwt.sign({userId:user,role:'admin'},process.env.JWT_SECRET),'Content-Type':'application/json'},body:JSON.stringify(body)}),action,id&&String(id));
+  const input={title:'Test SOP',workspace_id:2,department_id:7,status:'draft',owner_id:1,user_role:'admin'};
+  assert.equal((await call(3,'create',null,input)).status,403);
+  assert.equal((await call(2,'create',null,{...input,status:'approved'})).status,400);
+  const created=await call(2,'create',null,input);assert.equal(created.status,200);
+  const sop=(await created.json()).sop;assert.equal(sop.owner_id,2);
+  assert.equal((await call(4,'submit',sop.id)).status,403);
+  assert.equal((await call(2,'submit',sop.id)).status,200);
+  assert.equal((await call(2,'approve',sop.id,{user_role:'admin',user_id:1})).status,403);
+  assert.equal((await call(1,'update',sop.id,{title:'Pending edit'})).status,409);
+  const approved=await call(1,'approve',sop.id);assert.equal(approved.status,200);assert.equal((await approved.json()).sop.approved_by,1);
+  assert.equal((await call(1,'approve',sop.id)).status,409);
+  const revision=await call(1,'update',sop.id,{title:'Changed SOP'});assert.equal(revision.status,200);
+  const revised=(await revision.json()).sop;assert.equal(revised.status,'draft');assert.equal(revised.approved_by,null);assert.equal(revised.approved_at,null);
+  assert.equal((await db.query("SELECT count(*)::int AS n FROM activity_log WHERE user_name='Admin'")).rows[0].n,2);
+ }finally{await db.close();delete globalThis.__sopPool;if(path.dirname(dir)===process.cwd()&&path.basename(dir).startsWith('.sop-test-'))await fs.rm(dir,{recursive:true,force:true});}
+});

@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
+import { requireUser, workflowError } from '@/lib/server-user';
 
 export async function GET(request: NextRequest) {
   console.log('[API] GET /api/entries called');
   
   try {
+    await requireUser(request);
     const { searchParams } = new URL(request.url);
     const topic = searchParams.get('topic');
     const riskLevel = searchParams.get('risk_level');
@@ -52,9 +54,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ entries: result.rows });
   } catch (error) {
     console.error('[API] Entries fetch error:', error);
-    return NextResponse.json({ 
-      error: 'Failed to fetch entries',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    }, { status: 500 });
+    return workflowError(error);
   }
 }

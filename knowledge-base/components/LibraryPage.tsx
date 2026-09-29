@@ -1,0 +1,741 @@
+"use client"
+
+import { useState, useMemo, useEffect, useCallback, useRef } from "react"
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Spinner } from "@/components/ui/spinner"
+import { useWorkspace } from "@/contexts/WorkspaceContext"
+import { SOPCard, SOP } from "@/components/SOPCard"
+import {
+  Upload,
+  Search,
+  FileText,
+  X,
+  Clock,
+  FileUp,
+  FilePlus,
+  FilePenLine,
+  Trash2,
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+} from "lucide-react"
+import { Topic, Entry } from "@/lib/types"
+
+interface EntryWithNames extends Entry {
+  topic_name: string
+  subtopic_name: string
+}
+
+interface ActivityLogItem {
+  id: number
+  action: string
+  entity_type: string
+  entity_id: number | null
+  details: string
+  user_name: string
+  created_at: string
+}
+
+interface Department {
+  id: number
+  name: string
+  workspace_id: number
+}
+
+export default function HomePage() {
+  const { currentWorkspace, isLoading:workspaceLoading } = useWorkspace()
+  const isOperations = currentWorkspace?.slug === 'operations'
+
+  // Underwriting state
+  const [entries, setEntries] = useState<EntryWithNames[]>([])
+  const [topics, setTopics] = useState<Topic[]>([])
+
+  // Operations state
+  const [sops, setSOPs] = useState<SOP[]>([])
+  const [departments, setDepartments] = useState<Department[]>([])
+
+  // Shared state
+  const [activities, setActivities] = useState<ActivityLogItem[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const requestVersion = useRef(0)
+  const [loadError,setLoadError] = useState("")
+  const [isLoadingActivities, setIsLoadingActivities] = useState(true)
+
+  const [searchQuery, setSearchQuery] = useState("")
+  const [topicFilter, setTopicFilter] = useState("all")
+  const [departmentFilter, setDepartmentFilter] = useState("all")
+  const [riskFilter, setRiskFilter] = useState("all")
+  const [statusFilter, setStatusFilter] = useState("approved")
+  const [sortBy, setSortBy] = useState("newest")
+  const [selectedEntry, setSelectedEntry] = useState<EntryWithNames | null>(null)
+  const [activityLogOpen, setActivityLogOpen] = useState(false)
+  const [activityFilter, setActivityFilter] = useState("all")
+  const [expandedActivity, setExpandedActivity] = useState<string | null>(null)
+
+  // Fetch topics (Underwriting)
+  const fetchTopics = useCallback(async () => {
+    if (!currentWorkspace || isOperations) return
+    try {
+      const params = new URLSearchParams()
+      params.append('workspace_id', String(currentWorkspace.id))
+
+      const response = await fetch(`/api/topics?${params}`)
+      const data = await response.json()
+      setTopics(data.topics || [])
+    } catch (error) {
+      console.error('Failed to fetch topics:', error)
+    }
+  }, [currentWorkspace, isOperations])
+
+  // Fetch departments (Operations)
+  const fetchDepartments = useCallback(async () => {
+    if (!currentWorkspace || !isOperations) return
+    try {
+      const response = await fetch(`/api/departments?workspace_id=${currentWorkspace.id}`)
+      const data = await response.json()
+      setDepartments(data.departments || [])
+    } catch (error) {
+      console.error('Failed to fetch departments:', error)
+    }
+  }, [currentWorkspace, isOperations])
+
+  // Fetch entries (Underwriting)
+  const fetchEntries = useCallback(async () => {
+    if (!currentWorkspace || isOperations) return
+    const version=++requestVersion.current
+    setIsLoading(true)
+    setLoadError("")
+    try {
+      const params = new URLSearchParams()
+      params.append('workspace_id', String(currentWorkspace.id))
+      if (topicFilter !== 'all') params.append('topic', topicFilter)
+      if (riskFilter !== 'all') params.append('risk_level', riskFilter.charAt(0).toUpperCase() + riskFilter.slice(1))
+      if (searchQuery) params.append('search', searchQuery)
+
+      const response = await fetch(`/api/entries?${params}`)
+      if(!response.ok)throw new Error('Could not load title sources. Please retry.')
+      const data = await response.json()
+      if(version===requestVersion.current)setEntries(data.entries || [])
+    } catch (error) {
+      console.error('Failed to fetch entries:', error)
+      if(version===requestVersion.current){setEntries([]);setLoadError('Could not load title sources. Please retry.')}
+    } finally {
+      if(version===requestVersion.current)setIsLoading(false)
+    }
+  }, [currentWorkspace, isOperations, topicFilter, riskFilter, searchQuery])
+
+  // Fetch SOPs (Operations)
+  const fetchSOPs = useCallback(async () => {
+    if (!currentWorkspace || !isOperations) return
+    const version=++requestVersion.current
+    setIsLoading(true)
+    setLoadError("")
+    try {
+      const params = new URLSearchParams()
+      params.append('workspace_id', String(currentWorkspace.id))
+      if (departmentFilter !== 'all') params.append('department_id', departmentFilter)
+      if (statusFilter !== 'all') params.append('status', statusFilter)
+      if (searchQuery) params.append('search', searchQuery)
+
+      const response = await fetch(`/api/sops?${params}`)
+      if(!response.ok)throw new Error('Could not load procedures. Please retry.')
+      const data = await response.json()
+      if(version===requestVersion.current)setSOPs(data.sops || [])
+    } catch (error) {
+      console.error('Failed to fetch SOPs:', error)
+      if(version===requestVersion.current){setSOPs([]);setLoadError('Could not load procedures. Please retry.')}
+    } finally {
+      if(version===requestVersion.current)setIsLoading(false)
+    }
+  }, [currentWorkspace, isOperations, departmentFilter, statusFilter, searchQuery])
+
+  // Fetch activities
+  const fetchActivities = useCallback(async (filter?: string) => {
+    if (!currentWorkspace) return
+    setIsLoadingActivities(true)
+    try {
+      const params = new URLSearchParams()
+      params.append('workspace_id', String(currentWorkspace.id))
+      if (filter && filter !== 'all') {
+        const filterMap: Record<string, string> = {
+          'uploads': 'Uploads',
+          'edits': 'Edits',
+          'deletions': 'Deletions',
+          'created': 'Created'
+        }
+        params.append('filter', filterMap[filter] || 'All Activity')
+      }
+
+      const response = await fetch(`/api/activity?${params}`)
+      const data = await response.json()
+      setActivities(data.activities || [])
+    } catch (error) {
+      console.error('Failed to fetch activities:', error)
+    } finally {
+      setIsLoadingActivities(false)
+    }
+  }, [currentWorkspace])
+
+  // Initial data fetch
+  useEffect(() => {
+    if (currentWorkspace) {
+      if (isOperations) {
+        fetchDepartments()
+      } else {
+        fetchTopics()
+      }
+    }
+  }, [currentWorkspace, isOperations, fetchTopics, fetchDepartments])
+
+  // Refetch when filters change
+  useEffect(() => {
+    if (currentWorkspace) {
+      if (isOperations) {
+        fetchSOPs()
+      } else {
+        fetchEntries()
+      }
+    }
+  }, [currentWorkspace, isOperations, fetchEntries, fetchSOPs])
+
+  // Refetch activities when filter changes
+  useEffect(() => {
+    if (currentWorkspace) {
+      fetchActivities(activityFilter)
+    }
+  }, [activityFilter, fetchActivities, currentWorkspace])
+
+  // Sort entries client-side (Underwriting)
+  const sortedEntries = useMemo(() => {
+    const sorted = [...entries]
+    sorted.sort((a, b) => {
+      switch (sortBy) {
+        case "newest":
+          return new Date(b.last_reviewed || '').getTime() - new Date(a.last_reviewed || '').getTime()
+        case "oldest":
+          return new Date(a.last_reviewed || '').getTime() - new Date(b.last_reviewed || '').getTime()
+        case "topic-az":
+          return (a.topic_name || '').localeCompare(b.topic_name || '') || (a.subtopic_name || '').localeCompare(b.subtopic_name || '')
+        default:
+          return 0
+      }
+    })
+    return sorted
+  }, [entries, sortBy])
+
+  // Sort SOPs (Operations) - already sorted by API
+  const sortedSOPs = sops
+
+  const getTopicBadgeColor = (topic: string) => {
+    switch (topic) {
+      case "Bankruptcy":
+        return "bg-blue-100 text-blue-700 border-blue-200"
+      case "Probate":
+        return "bg-green-100 text-green-700 border-green-200"
+      case "Trusts":
+        return "bg-purple-100 text-purple-700 border-purple-200"
+      default:
+        return "bg-gray-100 text-gray-700 border-gray-200"
+    }
+  }
+
+  const getRiskBadgeColor = (riskLevel: string) => {
+    switch (riskLevel?.toLowerCase()) {
+      case "low":
+        return "bg-green-100 text-green-800 border-green-200"
+      case "medium":
+        return "bg-yellow-100 text-yellow-800 border-yellow-200"
+      case "high":
+        return "bg-red-100 text-red-800 border-red-200"
+      default:
+        return "bg-gray-100 text-gray-800 border-gray-200"
+    }
+  }
+
+  const truncateText = (text: string, maxLength = 150) => {
+    if (!text) return ''
+    if (text.length <= maxLength) return text
+    return text.slice(0, maxLength) + "..."
+  }
+
+  const getActivityIcon = (action: string) => {
+    if (action.includes('upload')) return <FileUp className="w-4 h-4" />
+    if (action.includes('created') || action.includes('added')) return <FilePlus className="w-4 h-4" />
+    if (action.includes('updated')) return <FilePenLine className="w-4 h-4" />
+    if (action.includes('deleted')) return <Trash2 className="w-4 h-4" />
+    return <FileText className="w-4 h-4" />
+  }
+
+  const getActivityIconColor = (action: string) => {
+    if (action.includes('upload')) return "bg-blue-100 text-blue-700"
+    if (action.includes('created') || action.includes('added') || action.includes('approved')) return "bg-green-100 text-green-700"
+    if (action.includes('updated') || action.includes('submitted')) return "bg-yellow-100 text-yellow-700"
+    if (action.includes('deleted')) return "bg-red-100 text-red-700"
+    return "bg-gray-100 text-gray-700"
+  }
+
+  const formatActivityTimestamp = (timestamp: string) => {
+    const date = new Date(timestamp)
+    const now = new Date()
+    const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60)
+
+    if (diffInHours < 24) {
+      return `Today at ${date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })}`
+    } else if (diffInHours < 48) {
+      return `Yesterday at ${date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })}`
+    } else {
+      return date.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      })
+    }
+  }
+
+  // Get workspace-specific title and subtitle
+  const getWorkspaceTitle = () => {
+    if (!currentWorkspace) return { title: 'Knowledge Base', subtitle: 'Your knowledge repository' }
+
+    switch (currentWorkspace.slug) {
+      case 'underwriting':
+        return {
+          title: 'Underwriting Knowledge Base',
+          subtitle: 'Title insurance underwriting guidance and procedures'
+        }
+      case 'operations':
+        return {
+          title: 'Operations SOPs',
+          subtitle: 'Standard operating procedures and department policies'
+        }
+      default:
+        return {
+          title: `${currentWorkspace.name} Knowledge Base`,
+          subtitle: currentWorkspace.description || 'Your knowledge repository'
+        }
+    }
+  }
+
+  const { title, subtitle } = getWorkspaceTitle()
+
+  if(!workspaceLoading&&!currentWorkspace)return <main className="mx-auto max-w-3xl p-8"><h1 className="text-2xl font-bold">This workspace could not be loaded</h1><p className="mt-4">Reload the page after signing in. If this continues, ask your administrator to check workspace access.</p><button className="mt-5 rounded-lg bg-primary px-4 py-2 text-white" onClick={()=>window.location.reload()}>Reload workspace</button></main>
+
+  return (
+    <div className="min-h-screen bg-background flex">
+      <div className={`min-w-0 flex-1 transition-all duration-300 ${activityLogOpen ? "xl:mr-80" : "mr-0"}`}>
+        <div className="max-w-7xl mx-auto px-6 py-8">
+          {loadError&&<div role="alert" className="mb-5 rounded-lg bg-red-50 p-4 text-red-900">{loadError}<button className="ml-4 font-semibold underline" onClick={()=>isOperations?fetchSOPs():fetchEntries()}>Retry</button></div>}
+          {/* Header Section */}
+          <div className="flex flex-wrap items-start justify-between mb-8 gap-6">
+            <div>
+              <p className="text-xs font-semibold tracking-widest text-orange-600 mb-3">TESSA / {isOperations ? 'OPERATIONS' : 'UNDERWRITING'}</p>
+              <h1 className="text-4xl font-bold text-foreground mb-2 text-balance">{title}</h1>
+              <p className="text-base text-muted-foreground">{subtitle}</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setActivityLogOpen(!activityLogOpen)}
+                className="h-11 px-4 font-semibold flex items-center gap-2"
+              >
+                <Clock className="w-4 h-4" />
+                Activity
+                {activityLogOpen ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+              </Button>
+              {isOperations ? (
+                <Link href="/sop/new">
+                  <Button className="h-11 px-6 font-semibold flex items-center gap-2 whitespace-nowrap">
+                    <Plus className="w-4 h-4" />
+                    Create New SOP
+                  </Button>
+                </Link>
+              ) : (
+                <Link href="/upload">
+                  <Button className="h-11 px-6 font-semibold flex items-center gap-2 whitespace-nowrap">
+                    <Upload className="w-4 h-4" />
+                    Upload New Document
+                  </Button>
+                </Link>
+              )}
+            </div>
+          </div>
+
+          {/* Search Bar */}
+          {!isOperations&&<div className="mb-5 rounded-xl bg-amber-50 p-5 text-sm text-amber-950"><b>Legacy source material — approval not verified.</b><p>These records were saved through the older extraction workflow. Its database used an automatic approved default; that is not a recorded reviewer sign-off. Check the source and your title lead before relying on an answer.</p></div>}
+          {isOperations&&<p className="mb-5 rounded-xl bg-white p-4 text-sm">The default view shows approved SOPs. Use the status filter to inspect drafts and pending procedures; those are not approved instructions.</p>}
+          {isOperations && <div className="mb-6 rounded-xl bg-primary p-5 text-white"><strong className="text-lg">A clear process. A consistent result.</strong><p className="mt-1 text-sm text-slate-200">Find a procedure, check its status, and open the steps your team needs.</p></div>}
+          {!isOperations && (
+            <Link href="/prelim-standards" className="block mb-6 rounded-xl bg-slate-900 p-5 text-white">
+              <strong className="text-lg">Prelim help & wording</strong>
+              <p className="mt-1 text-sm text-slate-200">Find title guidance, reference wording and a formatted example for use in SoftPro.</p>
+            </Link>
+          )}
+          <div className="relative mb-5">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder={isOperations ? "Search SOPs by title..." : "Search scenarios, documents, guidance..."}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-12 h-12 text-base"
+            />
+          </div>
+
+          {/* Filter Dropdowns */}
+          <div className="flex flex-wrap gap-3 mb-6">
+            {isOperations ? (
+              <>
+                <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+                  <SelectTrigger className="w-[180px] h-10">
+                    <SelectValue placeholder="Department" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Departments</SelectItem>
+                    {departments.map((dept) => (
+                      <SelectItem key={dept.id} value={String(dept.id)}>
+                        {dept.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-[180px] h-10">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    <SelectItem value="draft">Draft</SelectItem>
+                    <SelectItem value="pending">Pending Approval</SelectItem>
+                    <SelectItem value="approved">Approved</SelectItem>
+                  </SelectContent>
+                </Select>
+              </>
+            ) : (
+              <>
+                <Select value={topicFilter} onValueChange={setTopicFilter}>
+                  <SelectTrigger className="w-[180px] h-10">
+                    <SelectValue placeholder="Topic" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Topics</SelectItem>
+                    {topics.map((topic) => (
+                      <SelectItem key={topic.id} value={topic.name}>
+                        {topic.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select value={riskFilter} onValueChange={setRiskFilter}>
+                  <SelectTrigger className="w-[180px] h-10">
+                    <SelectValue placeholder="Risk Level" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Risk Levels</SelectItem>
+                    <SelectItem value="low">Low</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                    <SelectItem value="high">High</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Select value={sortBy} onValueChange={setSortBy}>
+                  <SelectTrigger className="w-[180px] h-10">
+                    <SelectValue placeholder="Sort by" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="newest">Newest</SelectItem>
+                    <SelectItem value="oldest">Oldest</SelectItem>
+                    <SelectItem value="topic-az">Topic A-Z</SelectItem>
+                  </SelectContent>
+                </Select>
+              </>
+            )}
+          </div>
+
+          {/* Stats Row */}
+          <div className="flex items-center gap-6 mb-6 text-sm text-muted-foreground">
+            <span>
+              Showing {isOperations ? sortedSOPs.length : sortedEntries.length} {isOperations ? (sortedSOPs.length === 1 ? "SOP" : "SOPs") : (sortedEntries.length === 1 ? "entry" : "entries")}
+            </span>
+          </div>
+
+          {/* Results Section */}
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center py-24">
+              <Spinner className="w-8 h-8 mb-4" />
+              <p className="text-muted-foreground">Loading {isOperations ? 'SOPs' : 'entries'}...</p>
+            </div>
+          ) : isOperations ? (
+            // Operations: SOP Cards
+            sortedSOPs.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-24 text-center">
+                <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mb-5">
+                  <FileText className="w-10 h-10 text-muted-foreground" />
+                </div>
+                <h3 className="text-2xl font-bold text-foreground mb-2">No SOPs yet</h3>
+                <p className="text-base text-muted-foreground mb-6 max-w-md">
+                  Create your first Standard Operating Procedure
+                </p>
+                <Link href="/sop/new">
+                  <Button className="h-11 px-6 font-semibold flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700">
+                    <Plus className="w-4 h-4" />
+                    Create New SOP
+                  </Button>
+                </Link>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                {sortedSOPs.map((sop) => (
+                  <SOPCard key={sop.id} sop={sop} />
+                ))}
+              </div>
+            )
+          ) : (
+            // Underwriting: Entry Cards
+            sortedEntries.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-24 text-center">
+                <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mb-5">
+                  <FileText className="w-10 h-10 text-muted-foreground" />
+                </div>
+                <h3 className="text-2xl font-bold text-foreground mb-2">Your knowledge base is empty</h3>
+                <p className="text-base text-muted-foreground mb-6 max-w-md">
+                  Upload your first document to get started building your knowledge base
+                </p>
+                <Link href="/upload">
+                  <Button className="h-11 px-6 font-semibold flex items-center gap-2">
+                    <Upload className="w-4 h-4" />
+                    Upload Document
+                  </Button>
+                </Link>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                {sortedEntries.map((entry) => (
+                  <button
+                    key={entry.id}
+                    onClick={() => setSelectedEntry(entry)}
+                    className="bg-card border border-border rounded-lg p-5 hover:border-primary/50 hover:shadow-md transition-all duration-200 text-left group"
+                  >
+                    <div className="mb-3">
+                      <span
+                        className={`inline-block px-2.5 py-1 rounded-md text-xs font-medium border ${getTopicBadgeColor(entry.topic_name)}`}
+                      >
+                        {entry.topic_name}
+                      </span>
+                    </div>
+
+                    <h3 className="text-lg font-bold text-foreground mb-3 leading-snug group-hover:text-primary transition-colors">
+                      {entry.subtopic_name}
+                    </h3>
+
+                    <p className="text-sm text-muted-foreground leading-relaxed mb-4">{truncateText(entry.scenario)}</p>
+
+                    <div className="flex items-center justify-between gap-3 pt-3 border-t border-border">
+                      <span
+                        className={`px-2.5 py-1 rounded-full text-xs font-medium border ${getRiskBadgeColor(entry.risk_level)}`}
+                      >
+                        {entry.risk_level} Risk
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {entry.last_reviewed && new Date(entry.last_reviewed).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
+                      </span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )
+          )}
+        </div>
+      </div>
+
+      {/* Activity Log Sidebar */}
+      {activityLogOpen && <button aria-label="Dismiss activity panel" onClick={()=>setActivityLogOpen(false)} className="fixed inset-0 top-16 bg-slate-900/20 z-30 xl:hidden" />}
+      <div
+        inert={!activityLogOpen}
+        className={`fixed right-0 top-16 h-[calc(100%-4rem)] w-80 max-w-[90vw] bg-background shadow-lg transition-transform duration-300 z-40 ${
+          activityLogOpen ? "translate-x-0" : "translate-x-full"
+        }`}
+      >
+        <div className="h-full flex flex-col">
+          <div className="bg-card border-b border-border px-6 py-5">
+            <div className="flex items-start justify-between mb-1">
+              <h2 className="text-lg font-bold text-foreground">Activity Log</h2>
+              <Button aria-label="Close activity panel" variant="ghost" size="sm" onClick={() => setActivityLogOpen(false)} className="h-8 w-8 p-0 -mr-2">
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+            <p className="text-sm text-muted-foreground mb-4">Recent changes to your {isOperations ? 'SOPs' : 'knowledge base'}</p>
+
+            <Select value={activityFilter} onValueChange={setActivityFilter}>
+              <SelectTrigger className="w-full h-9 text-sm">
+                <SelectValue placeholder="Filter activity" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Activity</SelectItem>
+                <SelectItem value="uploads">Uploads</SelectItem>
+                <SelectItem value="edits">Edits</SelectItem>
+                <SelectItem value="deletions">Deletions</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex-1 overflow-y-auto px-6 py-4">
+            {isLoadingActivities ? (
+              <div className="flex flex-col items-center justify-center py-12">
+                <Spinner className="w-6 h-6 mb-2" />
+                <p className="text-sm text-muted-foreground">Loading activity...</p>
+              </div>
+            ) : activities.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center mb-3">
+                  <Clock className="w-6 h-6 text-muted-foreground" />
+                </div>
+                <p className="text-sm font-medium text-foreground mb-1">No activity yet</p>
+                <p className="text-xs text-muted-foreground">
+                  Activity will appear here as you {isOperations ? 'create and edit SOPs' : 'upload and edit documents'}
+                </p>
+              </div>
+            ) : (
+              <div className="relative">
+                <div className="absolute left-4 top-0 bottom-0 w-px bg-border" />
+
+                <div className="space-y-4">
+                  {activities.map((activity) => (
+                    <div key={activity.id} className="relative pl-10">
+                      <div
+                        className={`absolute left-0 w-8 h-8 rounded-full flex items-center justify-center ${getActivityIconColor(activity.action)} border-2 border-background`}
+                      >
+                        {getActivityIcon(activity.action)}
+                      </div>
+
+                      <button
+                        onClick={() => setExpandedActivity(expandedActivity === String(activity.id) ? null : String(activity.id))}
+                        className="w-full text-left bg-card border border-border rounded-lg p-3 hover:border-primary/50 hover:shadow-sm transition-all duration-200"
+                      >
+                        <p className="text-sm font-medium text-foreground mb-1 leading-snug">{activity.details}</p>
+                        <p className="text-xs text-muted-foreground mb-1">by {activity.user_name}</p>
+                        <p className="text-xs text-muted-foreground">{formatActivityTimestamp(activity.created_at)}</p>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* View Modal (Underwriting only) */}
+      {selectedEntry && (
+        <div
+          className="fixed inset-0 bg-black/60 flex items-center justify-end p-0 z-50 animate-in fade-in duration-200"
+          onClick={() => setSelectedEntry(null)}
+        >
+          <div
+            className="bg-card border-l border-border shadow-2xl w-full max-w-2xl h-full overflow-y-auto animate-in slide-in-from-right duration-300"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="sticky top-0 bg-card border-b border-border px-8 py-6 flex items-start justify-between z-10">
+              <div className="flex-1 pr-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <span
+                    className={`inline-block px-2.5 py-1 rounded-md text-xs font-medium border ${getTopicBadgeColor(selectedEntry.topic_name)}`}
+                  >
+                    {selectedEntry.topic_name}
+                  </span>
+                  <span
+                    className={`px-2.5 py-1 rounded-full text-xs font-medium border ${getRiskBadgeColor(selectedEntry.risk_level)}`}
+                  >
+                    {selectedEntry.risk_level} Risk
+                  </span>
+                </div>
+                <h2 className="text-2xl font-bold text-foreground leading-tight">{selectedEntry.subtopic_name}</h2>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelectedEntry(null)}
+                className="h-9 w-9 p-0 flex-shrink-0"
+              >
+                <X className="w-5 h-5" />
+              </Button>
+            </div>
+
+            <div className="px-8 py-8 space-y-8">
+              <p className="bg-amber-50 rounded-lg p-4 text-sm text-amber-950">Legacy source — approval not verified. A saved date or automatic status does not establish reviewer approval.</p>
+              <div>
+                <h3 className="text-sm font-semibold text-foreground mb-3 uppercase tracking-wide">Scenario</h3>
+                <p className="text-base text-foreground leading-relaxed">{selectedEntry.scenario}</p>
+              </div>
+
+              <div>
+                <h3 className="text-sm font-semibold text-foreground mb-3 uppercase tracking-wide">
+                  Required Documents
+                </h3>
+                <p className="text-base text-foreground leading-relaxed whitespace-pre-line">
+                  {selectedEntry.required_documents}
+                </p>
+              </div>
+
+              <div>
+                <h3 className="text-sm font-semibold text-foreground mb-3 uppercase tracking-wide">Decision Steps</h3>
+                <p className="text-base text-foreground leading-relaxed whitespace-pre-line">
+                  {selectedEntry.decision_steps}
+                </p>
+              </div>
+
+              {selectedEntry.exception_language && (
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground mb-3 uppercase tracking-wide">
+                    Exception Language
+                  </h3>
+                  <p className="text-base text-foreground leading-relaxed">{selectedEntry.exception_language}</p>
+                </div>
+              )}
+
+              <div>
+                <h3 className="text-sm font-semibold text-foreground mb-3 uppercase tracking-wide">Source Reference</h3>
+                <p className="text-sm text-muted-foreground font-mono bg-muted px-4 py-3 rounded-md">
+                  {selectedEntry.source_reference}
+                </p>
+              </div>
+
+              <div className="pt-6 border-t border-border grid grid-cols-2 gap-6">
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground mb-2 uppercase tracking-wide">Owner</h3>
+                  <p className="text-base text-muted-foreground">{selectedEntry.owner}</p>
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground mb-2 uppercase tracking-wide">Last Reviewed</h3>
+                  <p className="text-base text-muted-foreground">
+                    {selectedEntry.last_reviewed && new Date(selectedEntry.last_reviewed).toLocaleDateString("en-US", {
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                    })}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="sticky bottom-0 bg-card border-t border-border px-8 py-5 flex gap-3 justify-end">
+              <Button variant="outline" onClick={() => setSelectedEntry(null)} className="h-10 px-5">
+                Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

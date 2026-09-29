@@ -202,7 +202,7 @@ export default function NewSOPPage() {
         <div className="text-center">
           <h2 className="text-2xl font-bold text-foreground mb-2">SOPs are for Operations</h2>
           <p className="text-muted-foreground mb-4">Switch to the Operations workspace to create SOPs.</p>
-          <Button onClick={() => router.push('/')}>Go to Library</Button>
+          <Button onClick={() => router.push('/operations')}>Go to Operations</Button>
         </div>
       </div>
     )
@@ -214,7 +214,7 @@ export default function NewSOPPage() {
         {/* Header */}
         <div className="mb-8">
           <button
-            onClick={() => router.push('/')}
+            onClick={() => router.push('/operations')}
             className="text-sm text-muted-foreground hover:text-foreground mb-4 flex items-center gap-1"
           >
             <ChevronLeft className="w-4 h-4" />

@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
+import { requireUser, AccessError, workflowError } from '@/lib/server-user';
 
 export async function POST(request: NextRequest) {
   try {
-    const { entries, user_name = 'System', workspace_id = 1 } = await request.json();
+    const actor=await requireUser(request);
+    if(!['admin','department_head'].includes(actor.role))throw new AccessError('A reviewer account is required.',403);
+    const { entries, workspace_id } = await request.json();
+    const user_name=actor.name;
+    if(!Array.isArray(entries)||!entries.length||entries.length>500)throw new AccessError('Choose 1–500 source entries.',400);
+    const workspace=(await pool.query("SELECT id FROM workspaces WHERE slug='underwriting'")).rows[0];
+    if(!workspace||Number(workspace_id)!==workspace.id)throw new AccessError('Source entries belong in Title.',400);
 
     const savedEntries = [];
 
@@ -58,8 +65,8 @@ export async function POST(request: NextRequest) {
 
       // Insert entry (with workspace_id)
       const result = await pool.query(
-        `INSERT INTO entries (topic_id, subtopic_id, scenario, required_documents, decision_steps, risk_level, exception_language, source_reference, owner, last_reviewed, workspace_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        `INSERT INTO entries (topic_id, subtopic_id, scenario, required_documents, decision_steps, risk_level, exception_language, source_reference, owner, last_reviewed, workspace_id, status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'draft')
          RETURNING *`,
         [topicId, subtopicId, entry.scenario, entry.required_documents, entry.decision_steps, entry.risk_level, entry.exception_language, entry.source_reference, entry.owner, entry.last_reviewed, workspace_id]
       );
@@ -78,6 +85,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, entries: savedEntries });
   } catch (error) {
     console.error('Save error:', error);
-    return NextResponse.json({ error: 'Failed to save entries' }, { status: 500 });
+    return workflowError(error);
   }
 }

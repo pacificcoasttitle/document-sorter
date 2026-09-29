@@ -29,7 +29,7 @@ export default function HelpCenterPage() {
             className="text-sm text-muted-foreground hover:text-foreground mb-4 flex items-center gap-1"
           >
             <ChevronLeft className="w-4 h-4" />
-            Back to Library
+            Back to Start
           </button>
           <div className="flex items-center gap-3 mb-3">
             <HelpCircle className="w-10 h-10 text-primary" />
@@ -43,9 +43,9 @@ export default function HelpCenterPage() {
         <section className="bg-white rounded-xl p-6 shadow-sm mb-8">
           <h2 className="text-xl font-bold mb-4">Where should I go?</h2>
           <dl className="space-y-3 text-sm">
-            <div><dt className="font-semibold">Title guidance</dt><dd className="text-muted-foreground">Find underwriting scenarios, required documents, and decision steps.</dd></div>
-            <div><dt className="font-semibold">Procedures</dt><dd className="text-muted-foreground">Find or write an internal SOP for how your team completes a task.</dd></div>
-            <div><dt className="font-semibold">Prelim help</dt><dd className="text-muted-foreground">Find wording and see how to format it on a preliminary report. Click a suggested question or type a topic; choose a matching record from the suggestions.</dd></div>
+            <div><dt className="font-semibold">Title</dt><dd className="text-muted-foreground">Choose Prelim wording &amp; formatting for reviewed report references, or the Underwriting source library for legacy research material. Legacy approval labels do not establish reviewer signoff.</dd></div>
+            <div><dt className="font-semibold">Operations</dt><dd className="text-muted-foreground">Find internal SOPs for how your team completes a task. The library starts with approved procedures; reviewers can change the status filter to work on drafts and pending submissions.</dd></div>
+            <div><dt className="font-semibold">Prelim help</dt><dd className="text-muted-foreground">Click a suggested question or type a topic and press Search. The result summary tells you whether approved references exist. Reviewers can separately inspect matching unapproved material. Search finds existing records; it does not generate advice.</dd></div>
           </dl>
           <details className="mt-5 rounded-lg bg-slate-50 p-4"><summary className="cursor-pointer font-semibold">Why are there no approved results?</summary><p className="text-sm mt-3 text-muted-foreground">Imported code-book entries begin as drafts. Admins and department heads can open Draft review, then start with the pilot examples. Approved answers appear only after review and approval. A question shortcut searches existing records; it does not generate or approve advice.</p></details>
           <button onClick={()=>router.push('/prelim-standards')} className="mt-5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white">Open Prelim help</button>

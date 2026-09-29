@@ -1,6 +1,8 @@
 "use client"
 
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react'
+import { usePathname } from 'next/navigation'
+import { useAuth } from '@/components/AuthProvider'
 
 interface Department {
   id: number
@@ -30,6 +32,10 @@ const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefin
 const STORAGE_KEY = 'tessa-current-workspace'
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
+  const {user,isLoading:authLoading}=useAuth()
+  const pathname = usePathname()
+  const routeSlug = pathname.startsWith('/operations') || pathname.startsWith('/sop') ? 'operations'
+    : pathname.startsWith('/title') || ['/prelim-standards','/upload','/review','/confirm'].includes(pathname) ? 'underwriting' : null
   const [currentWorkspace, setCurrentWorkspace] = useState<Workspace | null>(null)
   const [workspaces, setWorkspaces] = useState<Workspace[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -64,8 +70,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   }, [])
 
   useEffect(() => {
-    fetchWorkspaces()
-  }, [fetchWorkspaces])
+    if(authLoading)return
+    setWorkspaces([]);setCurrentWorkspace(null)
+    if(user?.id){setIsLoading(true);fetchWorkspaces()}
+    else setIsLoading(false)
+  }, [fetchWorkspaces,user?.id,authLoading])
 
   const setWorkspace = (workspace: Workspace) => {
     setCurrentWorkspace(workspace)
@@ -73,7 +82,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <WorkspaceContext.Provider value={{ currentWorkspace, setWorkspace, workspaces, isLoading }}>
+    <WorkspaceContext.Provider value={{ currentWorkspace: routeSlug ? workspaces.find(w=>w.slug===routeSlug) || null : currentWorkspace, setWorkspace, workspaces, isLoading }}>
       {children}
     </WorkspaceContext.Provider>
   )

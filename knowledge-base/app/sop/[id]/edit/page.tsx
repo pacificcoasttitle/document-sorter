@@ -182,6 +182,7 @@ export default function EditSOPPage({ params }: { params: Promise<{ id: string }
         </div>
 
         {/* Form */}
+        {status==='approved'&&<p className="mb-5 rounded-lg bg-amber-50 p-4 text-sm">Saving changes withdraws this version&apos;s approval and returns the SOP to draft. It must be submitted and approved again before being used as an approved procedure.</p>}
         <div className="bg-card border border-border rounded-lg p-8">
           <SOPForm
             data={formData}

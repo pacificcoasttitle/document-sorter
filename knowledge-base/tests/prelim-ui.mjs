@@ -16,9 +16,10 @@ try{
   await route.fulfill({json:data});
  });
  await page.goto(base+'/prelim-standards',{waitUntil:'networkidle',timeout:120000});
- await page.getByRole('heading',{name:'No approved answers have been published yet.'}).waitFor();
+ await page.getByRole('heading',{name:'No published references are available yet.'}).waitFor();
  await page.getByRole('button',{name:'How should property taxes be shown?'}).click();
- await page.getByRole('button',{name:'Browse imported drafts'}).click();
+ await page.getByText('No approved guidance answers this search yet.',{exact:false}).waitFor();
+ await page.getByRole('button',{name:'Review unapproved matches',exact:true}).click();
  await page.getByRole('combobox',{name:'Search references'}).fill('tax');
  await page.getByRole('option',{name:/Property taxes/}).waitFor();
  if(process.env.PRELIM_SCREENSHOT)await page.screenshot({path:process.env.PRELIM_SCREENSHOT.replace(/\.png$/,'-suggestions.png'),fullPage:true,animations:'disabled'});
@@ -33,5 +34,15 @@ try{
  await page.screenshot({path:process.env.PRELIM_SCREENSHOT||'prelim-standards-preview.png',fullPage:true,animations:'disabled'});
  await page.getByRole('button',{name:'Edit draft',exact:true}).click();
  await page.getByRole('heading',{name:'Live formatting preview — draft'}).waitFor();
+ await page.route('**/api/prelim-references?*',route=>route.fulfill({json:{revisions:[{...r,status:'source_approved',approved_by:'Synthetic source approval',approved_at:new Date().toISOString(),content:{...r.content,guidance:'',scenario:'',matterType:'Unclassified',formatNotes:'DRAFT: formatting requires review.'}}],canEdit:false,canApprove:false}}));
+ await page.reload({waitUntil:'networkidle'});
+ await page.getByRole('button',{name:'How should property taxes be shown?'}).click();
+ await page.getByRole('heading',{name:'1 approved source-wording matches'}).waitFor();
+ await page.getByRole('button',{name:'Open source wording',exact:true}).click();
+ await page.getByRole('button',{name:'Copy source wording',exact:true}).waitFor();
+ assert.equal(await page.getByRole('button',{name:'Copy approved wording',exact:true}).count(),0);
+ assert.equal(await page.getByRole('button',{name:/Draft review/}).count(),0);
+ await page.getByText('Original code-book wording — formatting not approved',{exact:true}).waitFor();
+ if(process.env.PRELIM_SCREENSHOT)await page.screenshot({path:process.env.PRELIM_SCREENSHOT.replace(/\.png$/,'-source-wording.png'),fullPage:true,animations:'disabled'});
  console.log('PASS: empty approved explanation, question shortcut, draft discovery, autocomplete keyboard selection, search, emphasis, and edit preview.');
 }finally{await browser.close();}

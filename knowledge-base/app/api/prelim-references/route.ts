@@ -37,10 +37,11 @@ export async function GET(req:NextRequest) {
         JOIN prelim_reference_revisions r ON r.id=e.revision_id WHERE r.reference_id=$1 ORDER BY e.id DESC`,[id]);
       return NextResponse.json({events:events.rows},{headers:{'Cache-Control':'no-store'}});
     }
-    const view=req.nextUrl.searchParams.get('view') || 'approved';
+    const view=req.nextUrl.searchParams.get('view') || 'published';
     const result=await pool.query(`SELECT * FROM prelim_reference_revisions
-      WHERE ($1::boolean OR status='approved')
-      AND ($2='all' OR status=$2) ORDER BY reference_id,version DESC`,[editor,editor?view:'approved']);
+      WHERE ($1::boolean OR status IN ('approved','source_approved'))
+      AND ($2='all' OR ($2='published' AND status IN ('approved','source_approved')) OR status=$2)
+      ORDER BY reference_id,version DESC`,[editor,editor?view:((view==='all'||view==='published')?'published':view)]);
     return NextResponse.json({revisions:result.rows,canEdit:editor,canApprove:user.role==='admin'}, {headers:{'Cache-Control':'no-store'}});
   }catch(e){return failure(e);}
 }
@@ -78,7 +79,7 @@ export async function POST(req:NextRequest) {
       const old=(await client.query('SELECT * FROM prelim_reference_revisions WHERE id=$1',[body.id])).rows[0] as ReferenceRevision;
       if(!body.updatedAt || new Date(old.updated_at).toISOString()!==body.updatedAt) throw new RequestError('This reference changed. Reload it before editing.',409);
       if(action==='revise') {
-        if(!['approved','retired'].includes(old.status)) throw new RequestError('Only published or retired references can be revised.',409);
+        if(!['approved','source_approved','retired'].includes(old.status)) throw new RequestError('Only published or retired references can be revised.',409);
         const working=await client.query("SELECT id FROM prelim_reference_revisions WHERE reference_id=$1 AND status IN ('draft','pending')",[old.reference_id]);
         if(working.rowCount) throw new RequestError('A working revision already exists.',409);
         record=(await client.query(`INSERT INTO prelim_reference_revisions(reference_id,version,content,source_text,created_by)
@@ -94,7 +95,7 @@ export async function POST(req:NextRequest) {
         }
         const status={submit:'pending',return:'draft',approve:'approved',retire:'retired'}[action as 'submit'|'return'|'approve'|'retire'];
         if(action==='approve') {
-          const retired=await client.query("UPDATE prelim_reference_revisions SET status='retired',updated_at=clock_timestamp() WHERE reference_id=$1 AND status='approved' RETURNING *",[old.reference_id]);
+          const retired=await client.query("UPDATE prelim_reference_revisions SET status='retired',updated_at=clock_timestamp() WHERE reference_id=$1 AND status IN ('approved','source_approved') RETURNING *",[old.reference_id]);
           for(const previous of retired.rows) await client.query('INSERT INTO prelim_reference_events(revision_id,action,actor,snapshot) VALUES($1,$2,$3,$4)',[previous.id,'superseded',identity,previous]);
         }
         record=(await client.query(`UPDATE prelim_reference_revisions SET status=$1,updated_at=clock_timestamp(),

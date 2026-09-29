@@ -106,7 +106,7 @@ export default function ConfirmPage() {
 
       // Clear context and redirect to library
       clearAll()
-      router.push('/')
+      router.push('/title/guidance')
     } catch (error) {
       console.error('Save error:', error)
       toast({

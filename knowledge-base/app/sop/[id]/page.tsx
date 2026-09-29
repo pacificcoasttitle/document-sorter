@@ -130,12 +130,12 @@ export default function ViewSOPPage({ params }: { params: Promise<{ id: string }
     })
   }
 
-  const canEdit = sop && (
+  const canEdit = sop && sop.status!=='pending' && (
     user?.role === 'admin' || 
     (sop.owner_id === user?.id && sop.status !== 'approved')
   )
 
-  const canSubmit = sop && sop.status === 'draft' && sop.owner_id === user?.id
+  const canSubmit = sop && sop.status === 'draft' && (sop.owner_id === user?.id || user?.role==='admin')
   const canApprove = sop && sop.status === 'pending' && user?.role === 'admin'
 
   if (isLoading) {
@@ -151,7 +151,7 @@ export default function ViewSOPPage({ params }: { params: Promise<{ id: string }
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-foreground mb-2">SOP not found</h2>
-          <Button onClick={() => router.push('/')}>Go to Library</Button>
+          <Button onClick={() => router.push('/operations')}>Go to Operations</Button>
         </div>
       </div>
     )
@@ -163,7 +163,7 @@ export default function ViewSOPPage({ params }: { params: Promise<{ id: string }
         {/* Header */}
         <div className="mb-8">
           <button
-            onClick={() => router.push('/')}
+            onClick={() => router.push('/operations')}
             className="text-sm text-muted-foreground hover:text-foreground mb-4 flex items-center gap-1"
           >
             <ChevronLeft className="w-4 h-4" />
