@@ -4,8 +4,7 @@ import { useState, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { useAuth } from "@/components/AuthProvider"
-import { WorkspaceSelector } from "@/components/WorkspaceSelector"
-import { LogOut, User, Settings, ChevronDown, Shield, HelpCircle } from "lucide-react"
+import { LogOut, User, Settings, ChevronDown } from "lucide-react"
 
 export function UserHeader() {
   const router = useRouter()
@@ -28,8 +27,6 @@ export function UserHeader() {
     return null
   }
 
-  const isAdmin = user.role === 'admin'
-
   return (
     <div className="fixed top-0 left-0 right-0 z-50 bg-white shadow-sm">
       <div className="max-w-[1500px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-2">
@@ -39,29 +36,7 @@ export function UserHeader() {
         </Link>
         
         <div className="flex items-center gap-1 sm:gap-3">
-          <WorkspaceSelector />
 
-          {/* Help link */}
-          <button
-            onClick={() => router.push('/help')}
-            aria-label="Help"
-            className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted/50 transition-colors text-muted-foreground hover:text-foreground"
-          >
-            <HelpCircle className="w-4 h-4" />
-            <span className="hidden sm:inline text-sm">Help</span>
-          </button>
-
-          {/* Admin link - only for admins */}
-          {isAdmin && (
-            <button
-              onClick={() => router.push('/admin')}
-              aria-label="Administration"
-              className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors text-amber-600 dark:text-amber-400"
-            >
-              <Shield className="w-4 h-4" />
-              <span className="hidden sm:inline text-sm font-medium">Admin</span>
-            </button>
-          )}
           
           {/* User dropdown */}
           <div className="relative" ref={dropdownRef}>

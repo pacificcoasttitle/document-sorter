@@ -15,16 +15,23 @@ try{
   if(url.pathname==='/api/prelim-references')data={revisions:url.searchParams.get('view')==='approved'?[]:[r],canEdit:true,canApprove:true};
   await route.fulfill({json:data});
  });
- await page.goto(base+'/prelim-standards',{waitUntil:'networkidle'});
- await page.getByLabel('Review status').selectOption('draft');
- await page.getByRole('button',{name:/DEMO-01/}).click();
+ await page.goto(base+'/prelim-standards',{waitUntil:'networkidle',timeout:120000});
+ await page.getByRole('heading',{name:'No approved answers have been published yet.'}).waitFor();
+ await page.getByRole('button',{name:'How should property taxes be shown?'}).click();
+ await page.getByRole('button',{name:'Browse imported drafts'}).click();
+ await page.getByRole('combobox',{name:'Search references'}).fill('tax');
+ await page.getByRole('option',{name:/Property taxes/}).waitFor();
+ if(process.env.PRELIM_SCREENSHOT)await page.screenshot({path:process.env.PRELIM_SCREENSHOT.replace(/\.png$/,'-suggestions.png'),fullPage:true,animations:'disabled'});
+ await page.getByRole('combobox',{name:'Search references'}).press('ArrowDown');
+ await page.getByRole('combobox',{name:'Search references'}).press('Enter');
  await page.getByRole('heading',{name:'Property taxes — presentation example'}).first().waitFor();
  assert.equal(await page.locator('article strong').count(),4);
  await page.getByLabel('Search references').fill('missing-query');
  await page.getByText('No matching references.',{exact:false}).waitFor();
  await page.getByLabel('Search references').fill('');
- await page.screenshot({path:process.env.PRELIM_SCREENSHOT||'prelim-standards-preview.png',fullPage:true});
+ await page.getByRole('heading',{name:'Prelim help & wording'}).click();
+ await page.screenshot({path:process.env.PRELIM_SCREENSHOT||'prelim-standards-preview.png',fullPage:true,animations:'disabled'});
  await page.getByRole('button',{name:'Edit draft',exact:true}).click();
  await page.getByRole('heading',{name:'Live formatting preview — draft'}).waitFor();
- console.log('PASS: draft filtering, selection, search, emphasis, and edit preview.');
+ console.log('PASS: empty approved explanation, question shortcut, draft discovery, autocomplete keyboard selection, search, emphasis, and edit preview.');
 }finally{await browser.close();}

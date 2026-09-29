@@ -39,8 +39,7 @@ try {
  await page.screenshot({path:output+'/01-underwriting.png',fullPage:true,animations:'disabled'});
  await page.getByRole('button',{name:'Activity',exact:true}).click();
  await page.getByRole('button',{name:'Close activity panel'}).click();
- await page.getByRole('button',{name:'Switch workspace: Underwriting'}).click();
- await page.getByRole('button',{name:/Operations/}).click();
+ await page.getByRole('link',{name:'Procedures',exact:true}).click();
  await page.getByRole('heading',{name:'Operations SOPs'}).waitFor();
  await page.screenshot({path:output+'/02-operations.png',fullPage:true});
  for(const [route,name] of [['/sop/new','03-new-sop'],['/admin','04-admin'],['/help','05-help'],['/upload','06-upload'],['/settings','07-settings']]) {

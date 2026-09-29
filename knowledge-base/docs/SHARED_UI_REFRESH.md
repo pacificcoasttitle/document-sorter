@@ -4,7 +4,7 @@ The existing pages now use the Prelim standards visual system: navy primary acti
 
 ## Coverage
 
-- Shared section navigation: knowledge/SOPs, prelim standards, help, and role-gated administration. Existing workspace switching remains available.
+- Shared section navigation: Title guidance, Procedures, Prelim help, How to use Tessa, and role-gated Admin. Title guidance and Procedures select their respective existing workspaces directly; the duplicate header workspace switcher is removed.
 - Underwriting and operations home: matching headers, search/filter styling, contextual banner and responsive action rows.
 - SOP creation/editing, document upload/review/confirmation, administration, help and account settings inherit shared panels, form controls and section context.
 - Login uses the same light palette and navy actions.

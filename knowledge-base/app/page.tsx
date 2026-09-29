@@ -359,7 +359,7 @@ export default function HomePage() {
           {isOperations && <div className="mb-6 rounded-xl bg-primary p-5 text-white"><strong className="text-lg">A clear process. A consistent result.</strong><p className="mt-1 text-sm text-slate-200">Find a procedure, check its status, and open the steps your team needs.</p></div>}
           {!isOperations && (
             <Link href="/prelim-standards" className="block mb-6 rounded-xl bg-slate-900 p-5 text-white">
-              <strong className="text-lg">Prelim standards</strong>
+              <strong className="text-lg">Prelim help & wording</strong>
               <p className="mt-1 text-sm text-slate-200">Find title guidance, reference wording and a formatted example for use in SoftPro.</p>
             </Link>
           )}
