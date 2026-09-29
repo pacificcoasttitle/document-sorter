@@ -355,6 +355,12 @@ export default function HomePage() {
           </div>
 
           {/* Search Bar */}
+          {!isOperations && (
+            <Link href="/prelim-standards" className="block mb-6 rounded-xl bg-slate-900 p-5 text-white">
+              <strong className="text-lg">Prelim standards</strong>
+              <p className="mt-1 text-sm text-slate-200">Find title guidance, reference wording and a formatted example for use in SoftPro.</p>
+            </Link>
+          )}
           <div className="relative mb-5">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
             <Input
